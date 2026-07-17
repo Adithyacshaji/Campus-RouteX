@@ -13,6 +13,8 @@ import { useEffect } from "react";
 function getIcon(title) {
   switch (title.toLowerCase()) {
     case "departments":
+    case "department":
+    case "faculty":
       return <MdSchool size={24} />;
 
     case "buildings":
@@ -57,7 +59,7 @@ function BottomSheet({
             {/* Department List */}
 
             {Array.isArray(data) &&
-              title === "Departments" &&
+              title === "Faculty" &&
               !selectedDepartment &&
 
               data.map((dept) => (
@@ -137,6 +139,32 @@ function BottomSheet({
                 ))}
               </>
             )}
+            {/* Department List */}
+            {Array.isArray(data) && title === "Department" && data.map((department) => {
+              const destination = department.faculties[0];
+              return <div className="sheet-card" key={department.id}>
+                <h4>{department.name}</h4>
+                <p>{destination?.routeNode === "chavara" ? "St Chavara Block" : "St Mary's Block"}</p>
+                <small>{destination?.floor ? `Floor: ${destination.floor}` : "Department office"}</small>
+                <button className="route-button" onClick={() => {
+                  if (!destination) return;
+                  onNavigate({
+                    id: destination.indoorNode || destination.routeNode,
+                    name: department.name,
+                    type: "faculty",
+                    category: "department",
+                    department: department.name,
+                    floor: destination.floor,
+                    building: destination.building,
+                    location: destination.building,
+                    routeNode: destination.routeNode,
+                    indoorNode: destination.indoorNode,
+                    hasIndoorNavigation: destination.hasIndoorNavigation,
+                  });
+                  onClose();
+                }}>Show Route</button>
+              </div>;
+            })}
 
             {/* Buildings */}
 
@@ -218,9 +246,9 @@ function BottomSheet({
 
               </div>
             )}
-            {/* Cafeteria */}
+            {/* Cafeteria & Library */}
 
-            {title === "Cafeteria" &&
+            {(title === "Cafeteria" || title === "Library") &&
               Array.isArray(data) &&
               data.map((item, index) => (
 

@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
 import "./FloorSelector.css";
-import { FLOOR_IMAGES } from "../data/floorImages";
-
-const FLOORS = Object.keys(FLOOR_IMAGES).reverse();
 
 export default function FloorSelector({
   currentFloor,
   setCurrentFloor,
   mapMode,
   destination,
+  activeFloorImages = {},
 }) {
   const [expanded, setExpanded] = useState(false);
+  const floors = Object.keys(activeFloorImages).reverse();
 
   useEffect(() => {
     if (mapMode !== "INDOOR") return;
@@ -26,6 +25,14 @@ export default function FloorSelector({
 
   if (mapMode !== "INDOOR") return null;
 
+function normalizeFloor(floor) {
+  if (!floor) return "G";
+  const match = floor.toString().match(/^(\d+)/);
+  if (match) return match[1];
+  if (floor.toString().toUpperCase().startsWith("G")) return "G";
+  return floor;
+}
+
   return (
     <div className={`floor-picker ${expanded ? "expanded" : ""}`}>
       <button
@@ -37,14 +44,14 @@ export default function FloorSelector({
           ▼
         </span>
       </button>
-
+ 
       <div className="floor-list">
-        {FLOORS.map((floor) => (
+        {floors.map((floor) => (
           <button
             key={floor}
             className={`floor-item
               ${currentFloor === floor ? "active" : ""}
-              ${destination?.floor === floor ? "destination" : ""}
+              ${normalizeFloor(destination?.floor) === floor ? "destination" : ""}
             `}
             onClick={() => {
               setCurrentFloor(floor);

@@ -29,7 +29,7 @@ export const FLOORS = {
       { id: "N210", name: "N210" },
       { id: "N211", name: "N211" },
       { id: "N212", name: "N212" },
-      { id: "N213", name: "N213" },
+      // { id: "N213", name: "N213" },
       { id: "N214", name: "N214" },
       { id: "N214", name: "S7 CS" },
       { id: "N212", name: "S3 EC" },
@@ -39,7 +39,7 @@ export const FLOORS = {
       { id: "N203", name: "S5 ME" },
       { id: "N202", name: "S3 ME" },
       // { id: "N215", name: "N215" },
-      { id: "N216", name: "CSE Department" },
+      // 
     ],
     hasLift: true,
     hasStairs: true,
@@ -75,11 +75,12 @@ export const FLOORS = {
     layout: "wing",
   },
 
-  F1: {
+  1: {
     entrance: "g",
     rooms: [
       { id: "N400", name: "Mechanical Department" },
       { id: "N401", name: "EEE Department" },
+      { id: "N401", name: "Electrical and Electronics Engineering" },
       { id: "N402", name: "N402" },
       { id: "N403", name: "N403" },
       { id: "N404", name: "N404" },
@@ -90,6 +91,7 @@ export const FLOORS = {
       { id: "N409", name: "N409" },
       { id: "N410", name: "N410" },
       { id: "N411", name: "Civil Department" },
+      { id: "N411", name: "CE Department" },
       { id: "N412", name: "Girl's Toilet" },
       { id: "N413", name: "Boy's Toilet" },
       { id: "N402", name: "S7 ME" },
@@ -105,13 +107,14 @@ export const FLOORS = {
     layout: "wing",
   },
 
-  F2: {
+  2: {
     entrance: "g",
     rooms: [
       // { id: "N500", name: "Central Store" },
       { id: "N501", name: "MBA Library" },
       { id: "N502", name: "MBA Department" },
       { id: "N503", name: "CS Lab" },
+      { id: "N503", name: "Computer Science Lab" },
       { id: "N504", name: "N504" },
       { id: "N505", name: "N505" },
       { id: "N506", name: "N506" },

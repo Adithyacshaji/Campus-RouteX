@@ -25,7 +25,7 @@ export const NODES = {
 
   b2: [10.357562, 76.212645],
 
-  b1: [10.357584, 76.212812],
+  b1: [10.357630,76.212802],
 
   g: [10.357903, 76.212941],
 
@@ -77,6 +77,7 @@ export const EDGES = [
   ["roadMiddle", "junction"],
   ["roadTop", "roadMiddle"],
   ["b1", "roadMiddle"],
+  ["b1", "roadTop"],
   ["b2", "junction"],
   ["g", "roadTop"],
   ["g", "st-marys-block"],

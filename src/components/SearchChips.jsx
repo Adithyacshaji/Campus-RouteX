@@ -1,7 +1,8 @@
 import "./SearchChip.css";
 
 function SearchChips({
-    onDepartmentsClick,
+    onDepartmentClick,
+    onFacultyClick,
     onLibraryClick,
     onCafeteriaClick,
     onBuildingsClick,
@@ -9,8 +10,12 @@ function SearchChips({
 }) {
     return (
         <div className="search-chips">
-            <button className="chip" onClick={onDepartmentsClick}>
-                Departments
+            <button className="chip" onClick={onDepartmentClick}>
+                Department
+            </button>
+
+            <button className="chip" onClick={onFacultyClick}>
+                Faculty
             </button>
 
             <button className="chip" onClick={onLibraryClick}>
@@ -21,10 +26,10 @@ function SearchChips({
                 Cafeteria
             </button>
 
-            <button className="chip" onClick={onBuildingsClick}>
+            {/* <button className="chip" onClick={onBuildingsClick}>
                 Buildings
             </button>
-            
+             */}
 
     </div >
   );

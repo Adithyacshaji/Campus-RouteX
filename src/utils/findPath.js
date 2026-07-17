@@ -14,11 +14,14 @@ export function findPath(start, end, edges, nodes = {}) {
         const nodeB = nodes[b]?.position || nodes[b];
 
         if (nodeA && nodeB) {
-            // position might be [lat, lng] array
-            distance = calculateHaversineDistance(
-                nodeA[0], nodeA[1],
-                nodeB[0], nodeB[1]
-            );
+            // Outdoor nodes use geographic coordinates. Indoor nodes are also
+            // stored in a locked Leaflet coordinate space, so a simple
+            // Euclidean weight keeps the graph stable if the floor image is
+            // replaced with a higher-resolution version.
+            const looksLikeGps = Math.abs(nodeA[0]) <= 90 && Math.abs(nodeA[1]) <= 180;
+            distance = looksLikeGps
+                ? calculateHaversineDistance(nodeA[0], nodeA[1], nodeB[0], nodeB[1])
+                : Math.hypot(nodeA[0] - nodeB[0], nodeA[1] - nodeB[1]);
         }
 
         graph[a].push({ node: b, weight: distance });

@@ -95,6 +95,12 @@ body,
   transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Keep indoor zoom below the compact route selector. */
+.campus-map--indoor .leaflet-bottom.leaflet-right {
+  top: calc(236px + var(--safe-area-top)) !important;
+  bottom: auto !important;
+}
+
 @media (min-width: 768px) {
   .campus-map .leaflet-bottom.leaflet-right {
     bottom: 32px !important;
@@ -125,6 +131,7 @@ body,
   position: relative;
   max-width: 520px;
   width: 100%;
+  margin: 0 auto;
 }
 
 .header-card {
@@ -185,6 +192,9 @@ body,
     0 -2px 8px rgba(0, 0, 0, 0.06);
 
   animation: slideUp 0.35s cubic-bezier(0.34, 1.28, 0.64, 1);
+  /* Keep it from blocking the search bar / top controls */
+  max-height: 55vh;
+  overflow-y: auto;
 }
 
 @keyframes slideUp {
@@ -318,53 +328,139 @@ body,
   transform: scale(0.97);
 }
 
+
 /* ==========================================================================
-   GPS MARKERS & SIMULATIONS
+   GPS MARKERS - Premium Google Maps Style
    ========================================================================== */
+
+/* ── Outdoor user location dot ── */
 .user-location-marker {
   background: transparent;
   border: none;
 }
 
+.user-dot-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-accuracy-ring {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(26, 115, 232, 0.12);
+  border: 1.5px solid rgba(26, 115, 232, 0.25);
+  pointer-events: none;
+}
+
 .user-dot {
-  width: 16px;
-  height: 16px;
+  position: relative;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--gm-blue-primary);
-  border: 2.5px solid var(--gm-bg-white);
-  position: relative;
-  box-shadow: 0 0 8px rgba(26, 115, 232, 0.5);
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 2px rgba(26, 115, 232, 0.3),
+    0 2px 10px rgba(26, 115, 232, 0.5);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .user-pulse {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(26, 115, 232, 0.18);
-  animation: gpsPulse 2s infinite;
+  background: transparent;
+  border: 2px solid rgba(26, 115, 232, 0.45);
+  animation: gpsPulse 2.2s ease-out infinite;
+  pointer-events: none;
+}
+
+.user-heading-arrow {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: var(--gm-blue-primary);
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(255,255,255,0.9));
+  transform-origin: center 18px;
+  /* Individual rotation set inline */
+}
+
+.user-heading-beam {
+  position: absolute;
+  top: -60px;
+  left: -20px;
+  width: 80px;
+  height: 80px;
+  transform-origin: 40px 80px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* "You are here" Tooltip Styles */
+.leaflet-tooltip.yah-tooltip-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.leaflet-tooltip.yah-tooltip-container::before {
+  display: none !important; /* Hide default triangle */
+}
+.yah-toast {
+  background: rgba(26,115,232,0.93);
+  color: #fff;
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 8px 18px;
+  border-radius: 24px;
+  box-shadow: 0 4px 18px rgba(26,115,232,0.45);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  animation: toastPop 3s ease forwards;
+}
+
+@keyframes toastPop {
+  0%   { opacity: 0; transform: scale(0.8) translateY(10px); }
+  15%  { opacity: 1; transform: scale(1) translateY(0); }
+  85%  { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.9) translateY(-5px); }
 }
 
 @keyframes gpsPulse {
   0% {
-    transform: translate(-50%, -50%) scale(0.5);
-    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 1;
   }
-
-  70% {
-    transform: translate(-50%, -50%) scale(1.4);
+  80% {
+    transform: translate(-50%, -50%) scale(1.6);
     opacity: 0;
   }
-
   100% {
-    transform: translate(-50%, -50%) scale(0.5);
+    transform: translate(-50%, -50%) scale(1.6);
     opacity: 0;
   }
 }
 
+/* ── Outdoor location dot ── */
 .outdoor-location-marker {
   background: transparent;
   border: none;
@@ -379,45 +475,110 @@ body,
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
 }
 
-.outdoor-destination-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #ea4335;
-  border: 2.5px solid #ffffff;
-  box-shadow: 0 2px 8px rgba(234, 67, 53, 0.4);
-  animation: pulseDestination 1.4s ease-in-out infinite;
+/* Small marker at the final point of every displayed route. */
+.route-endpoint-icon {
+  background: transparent;
+  border: 0;
 }
 
-@keyframes pulseDestination {
+.route-endpoint-dot {
+  width: 18px;
+  height: 18px;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: #1a73e8;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+}
 
-  0%,
-  100% {
-    transform: scale(0.9);
-  }
+/* ── Outdoor destination pin (proper Google Maps-style pin) ── */
+.destination-dot {
+  background: transparent;
+  border: none;
+}
 
-  50% {
-    transform: scale(1.15);
-  }
+.destination-pin-wrap {
+  position: relative;
+  width: 26px;
+  height: 35px;
+  display: flex;
+  justify-content: center;
+  animation: pinBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pinBounce {
+  0%   { transform: translateY(-20px) scale(0.7); opacity: 0; }
+  60%  { transform: translateY(4px) scale(1.05); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 /* ==========================================================================
-   INDOOR MARKERS
+   INDOOR MARKERS - Premium
    ========================================================================== */
+
+/* Indoor user dot */
 .indoor-location-marker {
   background: transparent;
   border: none;
 }
 
+.indoor-user-wrap {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .indoor-dot {
+  position: relative;
+  z-index: 2;
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: #34a853;
   border: 3px solid white;
-  box-shadow: 0 2px 8px rgba(52, 168, 83, 0.45);
+  box-shadow:
+    0 0 0 2px rgba(52, 168, 83, 0.3),
+    0 2px 8px rgba(52, 168, 83, 0.5);
 }
 
+.indoor-pulse {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(52, 168, 83, 0.4);
+  animation: gpsPulse 2s ease-out infinite;
+  pointer-events: none;
+}
+
+/* Indoor destination marker */
+.indoor-destination-marker {
+  background: transparent;
+  border: none;
+}
+
+.indoor-dest-wrap {
+  position: relative;
+  width: 26px;
+  height: 35px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  animation: pinBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.indoor-dest-svg {
+  animation: pinFloat 2.5s ease-in-out infinite;
+}
+
+@keyframes pinFloat {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+
+/* ── Facility markers (lift / stairs) ── */
 .facility-marker {
   width: 22px;
   height: 22px;
@@ -436,6 +597,27 @@ body,
 .facility-marker:hover {
   transform: scale(1.1);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+/* ==========================================================================
+   ROUTE ARROWS — Real triangular directional arrows
+   ========================================================================== */
+.route-arrow-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.route-arrow {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter:
+    drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 6px rgba(26, 115, 232, 0.6));
+  pointer-events: none;
+  /* rotation set inline via style prop */
 }
 
 /* ==========================================================================
@@ -764,107 +946,85 @@ body,
 
 .arrival-card {
   text-align: center;
+  padding: 12px 16px;
 }
 
+/* Smaller success icon */
 .arrival-icon {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 18px;
+  width: 45px;
+  height: 45px;
+  margin: 0 auto 8px;
   border-radius: 50%;
   background: #e8f5e9;
   color: #2e7d32;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 38px;
-  box-shadow: 0 4px 12px rgba(46, 125, 50, .18);
+  font-size: 24px;
 }
 
-.arrival-card h2 {
+
+/* Heading */
+.arrival-card h3 {
   margin: 0;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: #1f2937;
 }
 
-.arrival-text {
-  margin: 10px 0 18px;
-  color: #6b7280;
-  font-size: 15px;
-}
 
-.room-info {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 18px;
-  margin-bottom: 24px;
-}
-
-.room-number {
-  display: block;
-  font-size: 30px;
-  font-weight: 700;
-  color: #2563eb;
-}
-
-.floor-name {
-  display: block;
-  margin-top: 6px;
-  font-size: 15px;
+/* Destination */
+.arrival-header p {
+  margin: 4px 0 12px;
+  font-size: 14px;
   color: #64748b;
 }
 
-.feedback-section {
-  background: linear-gradient(135deg, #eff6ff, #f8fafc);
-  border: 1px solid #dbeafe;
-  border-radius: 16px;
-  padding: 18px;
-}
 
-.feedback-section h3 {
-  margin: 0 0 10px;
-  font-size: 18px;
-  color: #1e40af;
-}
-
-.feedback-section p {
-  margin: 0 0 18px;
+/* Feedback text */
+.feedback-text {
+  margin: 8px 0 12px;
   font-size: 14px;
   color: #475569;
-  line-height: 1.6;
 }
 
+
+/* Buttons */
+.arrival-actions {
+  display: flex;
+  gap: 10px;
+}
+
+
+/* Main feedback button */
 .feedback-btn {
-  width: 100%;
-  padding: 14px;
+  flex: 2;
+  height: 42px;
   border: none;
   border-radius: 12px;
   background: #2563eb;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  transition: .25s ease;
-  box-shadow: 0 6px 16px rgba(37, 99, 235, .25);
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
 }
 
-.feedback-btn:hover {
-  background: #1d4ed8;
-  transform: translateY(-2px);
-}
 
-.feedback-btn:active {
-  transform: scale(.98);
-}
-
-.arrival-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.arrival-actions button {
-  background: #1d4ed8;
-  transform: translateY(-2px);
+/* Finish button */
+.arrival-actions .primary-action {
+  flex: 1;
+  height: 42px;
   border-radius: 12px;
+  border: none;
+  background: #16a34a;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+
+/* Remove extra height */
+.feedback-section {
+  display: none;
 }

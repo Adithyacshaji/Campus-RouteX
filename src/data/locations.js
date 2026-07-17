@@ -67,7 +67,7 @@ export const LOCATIONS = [
   {
     id: "amphi",
     name: "Amphitheater",
-    position:[10.358837, 76.213000],
+    position:[10.358006, 76.213215],
     // type: "building",
   },
 

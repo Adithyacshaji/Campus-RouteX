@@ -1,6 +1,6 @@
 export const INDOOR_NODES = {
   // Ground Floor
- entrance_G: {
+  entrance_G: {
     floor: "G",
     position: [10.357839728305505, 76.21293101459742],
   },
@@ -304,279 +304,279 @@ export const INDOOR_NODES = {
 
   // 1st Floor
 
-  stairsA_F1: {
-    floor: "F1",
+  stairsA_1: {
+    floor: "1",
     position: [10.357848, 76.212927],
   },
 
-  stairsB_F1: {
-    floor: "F1",
+  stairsB_1: {
+    floor: "1",
     position: [10.357918, 76.212871],
   },
 
-  stairsC_F1: {
-    floor: "F1",
+  stairsC_1: {
+    floor: "1",
     position: [10.357910, 76.212940],
   },
 
-  lift_F1: {
-    floor: "F1",
+  lift_1: {
+    floor: "1",
     position: [10.357918, 76.212900],
   },
 
   // Rooms
   N400: {
-    floor: "F1",
+    floor: "1",
     position: [10.357861, 76.212901],
   },
 
   N401: {
-    floor: "F1",
+    floor: "1",
     position: [10.357911, 76.212900],
   },
 
   N402: {
-    floor: "F1",
+    floor: "1",
     position: [10.357930, 76.212884],
   },
 
   N403: {
-    floor: "F1",
+    floor: "1",
     position: [10.357931, 76.212907],
   },
 
   N404: {
-    floor: "F1",
+    floor: "1",
     position: [10.357929, 76.212930],
   },
 
   N405: {
-    floor: "F1",
+    floor: "1",
     position: [10.357929, 76.212953],
   },
 
   N406: {
-    floor: "F1",
+    floor: "1",
     position: [10.357930, 76.212961],
   },
 
   N407: {
-    floor: "F1",
+    floor: "1",
     position: [10.357920, 76.212953],
   },
 
   N408: {
-    floor: "F1",
+    floor: "1",
     position: [10.357893, 76.212954],
   },
 
   N409: {
-    floor: "F1",
+    floor: "1",
     position:[10.357877, 76.212954],
   },
 
   N410: {
-    floor: "F1",
+    floor: "1",
     position: [10.357850, 76.212954],
   },
   N411: {
-    floor: "F1",
+    floor: "1",
     position: [10.357848, 76.212906],
   },
 
   N412: {
-    floor: "F1",
+    floor: "1",
     position: [10.357922, 76.212983],
   },
 
   N413: {
-    floor: "F1",
+    floor: "1",
     position:[10.357930, 76.212980],
   },
 
   // Corridor nodes
-  co_1_F1: {
-    floor: "F1",
+  co_1_1: {
+    floor: "1",
     position:[10.357926, 76.212871],
   },
 
-  co_2_F1: {
-    floor: "F1",
+  co_2_1: {
+    floor: "1",
     position:[10.357919, 76.212905],
   },
 
-  co_3_F1: {
-    floor: "F1",
+  co_3_1: {
+    floor: "1",
     position: [10.357862, 76.212906],
   },
 
-  co_4_F1: {
-    floor: "F1",
+  co_4_1: {
+    floor: "1",
     position: [10.357848, 76.212911],
   },
 
-  co_5_F1: {
-    floor: "F1",
+  co_5_1: {
+    floor: "1",
     position: [10.357848, 76.212948],
   },
 
-  co_6_F1: {
-    floor: "F1",
+  co_6_1: {
+    floor: "1",
     position: [10.357877, 76.212948],
   },
 
-  co_7_F1: {
-    floor: "F1",
+  co_7_1: {
+    floor: "1",
     position: [10.357925, 76.212944],
   },
 
-  co_8_F1: {
-    floor: "F1",
+  co_8_1: {
+    floor: "1",
     position:[10.357926, 76.212919],
   },
-  co_9_F1: {
-    floor: "F1",
+  co_9_1: {
+    floor: "1",
     position: [10.357926, 76.212961],
   },
-  co_10_F1: {
-    floor: "F1",
+  co_10_1: {
+    floor: "1",
     position:[10.357926, 76.212894],
   },
 // 
 
   // 2nd Floor
 
-  stairsA_F2: {
-    floor: "F2",
+  stairsA_2: {
+    floor: "2",
     position: [10.357853, 76.212930],
   },
 
-  stairsB_F2: {
-    floor: "F2",
+  stairsB_2: {
+    floor: "2",
     position: [10.357923, 76.212878],
   },
 
-  lift_F2: {
-    floor: "F2",
+  lift_2: {
+    floor: "2",
     position: [10.357922, 76.212907],
   },
 
   N501: {
-    floor: "F2",
+    floor: "2",
     position:[10.357858, 76.212912],
   },
 
   N502: {
-    floor: "F2",
+    floor: "2",
     position: [10.357873, 76.212905],
   },
 
   N503: {
-    floor: "F2",
+    floor: "2",
     position:[10.357915, 76.212905],
   },
 
   N504: {
-    floor: "F2",
+    floor: "2",
     position: [10.357935, 76.212891],
   },
 
   N505: {
-    floor: "F2",
+    floor: "2",
     position: [10.357934684915113, 76.21291397414768],
   },
 
   N506: {
-    floor: "F2",
+    floor: "2",
     position: [10.357933, 76.212936],
   },
 
   N507: {
-    floor: "F2",
+    floor: "2",
     position: [10.357932, 76.212958],
   },
 
   N508: {
-    floor: "F2",
+    floor: "2",
     position: [10.357932, 76.212966],
   },
 
   N509: {
-    floor: "F2",
+    floor: "2",
     position:[10.357932, 76.212983],
   },
 
   N511: {
-    floor: "F2",
+    floor: "2",
     position: [10.357928, 76.212977],
   },
 
   N512: {
-    floor: "F2",
+    floor: "2",
     position: [10.357923, 76.212955],
   },
 
   N513: {
-    floor: "F2",
+    floor: "2",
     position: [10.357900, 76.212955],
   },
 
   N514: {
-    floor: "F2",
+    floor: "2",
     position: [10.357886, 76.212955],
   },
 
   N515: {
-    floor: "F2",
+    floor: "2",
     position: [10.357858, 76.212955],
   },
 
-  co_1_F2: {
-    floor: "F2",
+  co_1_2: {
+    floor: "2",
     position: [10.357927, 76.212891],
   },
 
-  co_2_F2: {
-    floor: "F2",
+  co_2_2: {
+    floor: "2",
     position: [10.357928, 76.212913],
   },
 
-  co_3_F2: {
-    floor: "F2",
+  co_3_2: {
+    floor: "2",
     position: [10.357917, 76.212911],
   },
 
-  co_4_F2: {
-    floor: "F2",
+  co_4_2: {
+    floor: "2",
     position: [10.357867, 76.212911],
   },
 
-  co_5_F2: {
-    floor: "F2",
+  co_5_2: {
+    floor: "2",
     position: [10.357858149302725, 76.2129166281848],
   },
 
-  co_6_F2: {
-    floor: "F2",
+  co_6_2: {
+    floor: "2",
     position: [10.357858, 76.212950],
   },
 
-  co_7_F2: {
-    floor: "F2",
+  co_7_2: {
+    floor: "2",
     position:[10.357900, 76.212950],
   },
 
-  co_8_F2: {
-    floor: "F2",
+  co_8_2: {
+    floor: "2",
     position: [10.357929, 76.212949],
   },
 
-  co_9_F2: {
-    floor: "F2",
+  co_9_2: {
+    floor: "2",
     position: [10.357932417723818, 76.21298120273354],
   },
-  co_10_F2: {
-    floor: "F2",
+  co_10_2: {
+    floor: "2",
     position: [10.357853, 76.212917],
   },
   // 

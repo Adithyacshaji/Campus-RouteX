@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
 import { SEARCH_ITEMS } from "../data/searchData";
-import { Search, Mic, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import "./SearchBar.css";
-function SearchBar({ onSelect, setRoute, onBack }) {
+function SearchBar({ onSelect }) {
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
   const normalizeText = (text) =>
@@ -15,9 +15,7 @@ function SearchBar({ onSelect, setRoute, onBack }) {
 
 
   const results = normalizedQuery
-    ? SEARCH_ITEMS.filter((location) =>
-      normalizeText(location.name ?? "").includes(normalizedQuery)
-    ).slice(0, 8)
+    ? SEARCH_ITEMS.filter((location) => normalizeText(location.name ?? "").includes(normalizedQuery))
     : [];
 
   const handleSelect = (location) => {
@@ -34,17 +32,14 @@ function SearchBar({ onSelect, setRoute, onBack }) {
 
   return (
     <div className="top-header">
-
-      <div className="header-card">
         <div className="search-panel">
 
           <Search className="search-icon" size={18} />
-
           <input
             ref={inputRef}
             className="search-input"
             type="search"
-            placeholder="Search campus"
+            placeholder="Search Departments,Faculty,Classroom"
             value={query}
             onChange={(event) => {
               const value = event.target.value;
@@ -69,7 +64,6 @@ function SearchBar({ onSelect, setRoute, onBack }) {
           <div className="divider"></div>
 
         </div>
-      </div>
 
       {showResults && query.trim() !== "" && results.length > 0 && (
         <div className="search-results">

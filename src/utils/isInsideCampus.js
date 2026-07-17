@@ -1,8 +1,8 @@
 const CAMPUS = {
-  minLat: 10.35330,
-  maxLat: 10.35820,
-  minLng: 76.21110,
-  maxLng: 76.21420,
+  minLat: 10.35290,
+  maxLat: 10.36020,
+  minLng: 76.21070,
+  maxLng: 76.21480,
 };
 
 export function isInsideCampus(location) {
