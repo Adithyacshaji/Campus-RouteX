@@ -910,6 +910,33 @@ function MapZoomManager({
     if (!map.setBearing) return;
 
     if (mapMode === "INDOOR") {
+      const isChavara = activeFloorImages === CHAVARA_FLOOR_IMAGES;
+      if (isChavara) {
+        map.setBearing(0, { animate: false });
+
+        const userPos = indoorUserLocation?.position || (visibleIndoorRoute.length > 0 ? visibleIndoorRoute[0] : null);
+        if (userPos && visibleIndoorRoute.length >= 2) {
+          requestAnimationFrame(() => {
+            map.setView(userPos, 22, {
+              animate: true,
+              duration: 1.2,
+            });
+          });
+        } else {
+          requestAnimationFrame(() => {
+            if (activeFloorImages[currentFloor]) {
+              map.fitBounds(activeFloorImages[currentFloor].bounds, {
+                maxZoom: INDOOR_ZOOM.overview + 0.5,
+                padding: [30, 30],
+                animate: true,
+                duration: 1.2,
+              });
+            }
+          });
+        }
+        return;
+      }
+
       const userPos = indoorUserLocation?.position || (visibleIndoorRoute.length > 0 ? visibleIndoorRoute[0] : null);
 
       if (!userPos) {

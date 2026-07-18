@@ -1,12 +1,12 @@
 // chavaraIndoorNodes.js
 
 export const CHAVARA_INDOOR_NODES = {
-  entrance_G: {
-    id: "entrance_G",
-    label: "Ground Entrance",
-    floor: "G",
-    position: [10.355941, 76.212433],
-  },
+  // entrance_G: {
+  //   id: "entrance_G",
+  //   label: "Ground Entrance",
+  //   floor: "G",
+  //   position: [10.355941, 76.212433],
+  // },
 
   F016: {
     id: "lobby_G",
