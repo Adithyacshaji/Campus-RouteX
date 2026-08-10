@@ -4,7 +4,10 @@ export function findPath(start, end, edges, nodes = {}) {
     const graph = {};
 
     // build bidirectional graph
-    for (const [a, b] of edges) {
+    for (const edge of edges) {
+        const a = Array.isArray(edge) ? edge[0] : edge.source;
+        const b = Array.isArray(edge) ? edge[1] : edge.target;
+
         if (!graph[a]) graph[a] = [];
         if (!graph[b]) graph[b] = [];
 

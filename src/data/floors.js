@@ -38,6 +38,7 @@ export const FLOORS = {
       { id: "N209", name: "S3 EEE" },
       { id: "N203", name: "S5 ME" },
       { id: "N202", name: "S3 ME" },
+      { id: "CSQ", name: "Centre Square" },
       // { id: "N215", name: "N215" },
       // 
     ],

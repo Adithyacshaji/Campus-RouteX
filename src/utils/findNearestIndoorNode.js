@@ -6,11 +6,12 @@ function distance(a, b) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-export function findNearestIndoorNode(position, floor) {
+export function findNearestIndoorNode(position, floor, customIndoorNodes = null) {
   let nearest = null;
   let min = Infinity;
+  const nodesToSearch = customIndoorNodes || INDOOR_NODES;
 
-  Object.entries(INDOOR_NODES).forEach(([id, node]) => {
+  Object.entries(nodesToSearch).forEach(([id, node]) => {
     if (node.floor !== floor) return;
 
     const d = distance(position, node.position);

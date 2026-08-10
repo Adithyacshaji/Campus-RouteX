@@ -3,15 +3,16 @@ import { calculateHaversineDistance } from "./haversine";
 
 const MAX_SNAP_DISTANCE_METERS = 50; // Only snap if within 50m of a QR code
 
-export function findNearestQRLocation(location) {
+export function findNearestQRLocation(location, customQrLocations = null) {
   if (!location || typeof location.lat !== "number" || typeof location.lng !== "number") {
     return null;
   }
 
   let nearest = null;
   let minDistance = Infinity;
+  const qrToSearch = customQrLocations || QR_LOCATIONS;
 
-  QR_LOCATIONS.forEach((qr) => {
+  qrToSearch.forEach((qr) => {
     const distance = calculateHaversineDistance(
       location.lat,
       location.lng,

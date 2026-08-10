@@ -15,7 +15,9 @@ export const NODES = {
 
   chavara: [10.355941, 76.212414],
 
-  p3: [10.356395, 76.212414],
+  p3: [10.356367,76.212575],
+
+  p4: [10.356388,76.212430],
 
   auditorium: [10.356370, 76.212721],
 
@@ -56,7 +58,8 @@ export const EDGES = [
   ["p2", "cafe"],
   ["p1", "p2"],
   ["p2", "chavara"],
-  ["chavara", "p3"],
+  ["chavara", "p4"],
+  ["p3", "p4"],
   ["p3", "auditorium"],
 
   ["junction", "canteen"],
@@ -64,7 +67,7 @@ export const EDGES = [
   ["roadMiddle", "roadTop"],
   ["roadTop", "g"],
   ["roadTop", "amphi"],
-  ["roadTop", "amphi"],
+  ["g", "amphi"],
 
 
   ["junction", "b2"],

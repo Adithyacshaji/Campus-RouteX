@@ -14,46 +14,50 @@ import {
 import "leaflet/dist/leaflet.css";
 import "leaflet-rotate";
 import L from "leaflet";
-import { CAMPUS_BOUNDS, LOCATIONS } from "../data/locations";
-import { FLOOR_IMAGES, CHAVARA_FLOOR_IMAGES } from "../data/floorImages";
-import { INDOOR_NODES } from "../data/indoorNodes";
-import { findNearestIndoorNode } from "../utils/findNearestIndoorNode";
+import { CAMPUS_BOUNDS } from "../../data/locations";
+import { useDatabase } from "../../context/DatabaseContext";
+import { FLOOR_IMAGES, CHAVARA_FLOOR_IMAGES } from "../../data/floorImages";
+import { INDOOR_NODES } from "../../data/indoorNodes";
+import { findNearestIndoorNode } from "../../utils/findNearestIndoorNode";
+
 
 // ─── Debug flags ──────────────────────────────────────────────────────────────
-const SHOW_INDOOR_DEBUG_MARKERS = true;
+const SHOW_INDOOR_DEBUG_MARKERS = false; // Show all indoor nodes as markers for debugging
 const SHOW_INDOOR_DEBUG_TOOLS = false;
 const INITIAL_OUTDOOR_MARKER_IDS = [
   "chavara",
   "canteen",
   "st-marys-block",
   "cafe",
+  "cafe1",
+  "cafe-2",
   "joseph",
 ];
 
 // ─── Zoom constants ───────────────────────────────────────────────────────────
 const OUTDOOR_ZOOM = {
-  default: 18,
-  min: 16,
-  max: 22,
+  default: 17.5,
+  min: 16.5,
+  max: 20,
   maxNative: 19,
 };
 const INDOOR_ZOOM = {
-  min: 18,
-  max: 26,
-  overview: 22,
+  min: 21.25, // Limited from 20.75 to restrict zooming out too far in indoor mode
+  max: 24.5,
+  overview: 21.5,
 };
 
 // ─── Buildings list ───────────────────────────────────────────────────────────
 const BUILDINGS = [
-  { name: "St Chavara\nBlock", position: [10.355897, 76.212608] },
+  { name: "St Chavara\nBlock", position: [10.355803, 76.212607] },
   { name: "St Mary's\nBlock", position: [10.357831, 76.212684] },
-  { name: "Canteen", position: [10.35740, 76.212602] },
+  { name: "Canteen", position: [10.357311, 76.212615] },
   { name: "Open\nAuditorium", position: [10.356543, 76.212435] },
-  { name: "Cafe", position: [10.355706, 76.212082] },
+  { name: "Cafe", position: [10.355634, 76.212088] },
+  { name: "Christ Cafe", position: [10.357574, 76.213379] },
   { name: "St Joseph's\nBlock", position: [10.358869, 76.212778] },
   { name: "Amphitheatre", position: [10.358051, 76.213301] },
 ];
-
 // ─── Campus Feature Data ──────────────────────────────────────────────────────
 const GREEN_AREAS = [
   {
@@ -116,12 +120,13 @@ function getBearing(a, b) {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-function makeArrowIcon(bearing, turnDiff = 0) {
+function makeArrowIcon(bearing, turnDiff = 0, mapBearing = 0) {
   let svgHtml;
+  const displayBearing = (bearing - mapBearing + 360) % 360;
 
   if (Math.abs(turnDiff) < 5) {
     // straight
-    svgHtml = `<div class="route-arrow" style="transform: rotate(${bearing}deg); transform-origin: 16px 16px; display: flex; align-items: center; justify-content: center;">
+    svgHtml = `<div class="route-arrow" style="transform: rotate(${displayBearing}deg); transform-origin: 16px 16px; display: flex; align-items: center; justify-content: center;">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
         <path d="M16 4 L16 28 M11 10 L16 4 L21 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="1"/>
       </svg>
@@ -163,7 +168,7 @@ function makeArrowIcon(bearing, turnDiff = 0) {
     const barb2x = p3x + barbLength * Math.sin(barbRad2);
     const barb2y = p3y - Math.cos(barbRad2) * barbLength;
 
-    svgHtml = `<div class="route-arrow" style="transform: rotate(${bearing}deg); transform-origin: 16px 16px; display: flex; align-items: center; justify-content: center;">
+    svgHtml = `<div class="route-arrow" style="transform: rotate(${displayBearing}deg); transform-origin: 16px 16px; display: flex; align-items: center; justify-content: center;">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
         <path d="M 16,28 L 16,${p1y} Q 16,16 ${p2x},${p2y} L ${p3x},${p3y}" stroke="white" stroke-width="3" stroke-linecap="round" fill="none" opacity="1"/>
         <path d="M ${barb1x},${barb1y} L ${p3x},${p3y} L ${barb2x},${barb2y}" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="1"/>
@@ -180,13 +185,63 @@ function makeArrowIcon(bearing, turnDiff = 0) {
 }
 
 // ─── Icon helpers ─────────────────────────────────────────────────────────────
+function getPremiumIcon(category, name, zoomLevel = 17.5) {
+  let color = "#10b981"; // Default Emerald Green (non-blue to keep user dot unique)
+  let innerHtml = '<circle cx="12" cy="12" r="5" fill="white"/>';
+
+  const catStr = (category || "").toLowerCase();
+
+  if (catStr.includes("food") || catStr.includes("cafe") || catStr.includes("canteen") || catStr.includes("cafe-2")) {
+    color = "#f97316"; // Orange
+    innerHtml = '<path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z" fill="white"/>';
+  } else if (catStr.includes("library")) {
+    color = "#8b5cf6"; // Purple
+    innerHtml = '<path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z" fill="white"/>';
+  } else if (catStr.includes("parking")) {
+    color = "#64748b"; // Slate for parking
+    innerHtml = '<path d="M13 3H6v18h4v-6h3c3.31 0 6-2.69 6-6s-2.69-6-6-6zm.2 8H10V7h3.2c1.1 0 2 .9 2 2s-.9 2-2 2z" fill="white"/>';
+  } else if (catStr.includes("medical")) {
+    color = "#ef4444"; // Red
+    innerHtml = '<path d="M19 3H5c-1.1 0-1.99.9-1.99 2L3 19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 11h-4v4h-4v-4H6v-4h4V6h4v4h4v4z" fill="white"/>';
+  } else if (catStr.includes("washroom") || catStr.includes("toilet")) {
+    color = "#eab308"; // Yellow
+    innerHtml = '<circle cx="12" cy="12" r="5" fill="white"/>';
+  } else {
+    // Default building
+    innerHtml = '<path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" fill="white"/>';
+  }
+
+  // Calculate icon size based on current zoom level (Default size: 32px at 17.5 zoom)
+  let size = 32;
+  if (zoomLevel <= 16.5) size = 20;
+  else if (zoomLevel >= 19) size = 38;
+  else {
+    size = 20 + ((zoomLevel - 16.5) / (19 - 16.5)) * (38 - 20);
+  }
+  const innerSize = Math.max(14, Math.floor(size - 6));
+  const svgSize = Math.max(8, Math.floor(innerSize * 0.54));
+
+  return L.divIcon({
+    className: "premium-marker",
+    html: `
+      <div style="background-color: white; height: ${size}px; width: ${size}px; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; border: 1px solid #f3f4f6;">
+        <div style="background-color: ${color}; width: ${innerSize}px; height: ${innerSize}px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${svgSize}" height="${svgSize}">${innerHtml}</svg>
+        </div>
+      </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
 const destinationIcon = L.divIcon({
   className: "destination-dot",
   html: `<div class="destination-pin-wrap">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 48" width="26" height="35">
-      <path d="M18 2C10.3 2 4 8.2 4 16c0 10.5 14 28.5 14 28.5S32 26.5 32 16C32 8.2 25.7 2 18 2Z" fill="#e5484d" stroke="white" stroke-width="2"/>
+      <path d="M18 2C10.3 2 4 8.2 4 16c0 10.5 14 28.5 14 28.5S32 26.5 32 16C32 8.2 25.7 2 18 2Z" fill="#ef4444" stroke="white" stroke-width="2"/>
       <circle cx="18" cy="16" r="7" fill="white"/>
-      <circle cx="18" cy="16" r="3.2" fill="#e5484d"/>
+      <circle cx="18" cy="16" r="3.2" fill="#ef4444"/>
     </svg>
   </div>`,
   iconSize: [26, 35],
@@ -206,16 +261,17 @@ function makeUserIcon(heading) {
               <path d="M 50,100 L 15,10 A 40,40 0 0,1 85,10 Z" fill="url(#beamGradient)"/>
               <defs>
                 <linearGradient id="beamGradient" x1="0.5" y1="1" x2="0.5" y2="0">
-                  <stop offset="0%" stop-color="#1a73e8" stop-opacity="0.45"/>
-                  <stop offset="100%" stop-color="#1a73e8" stop-opacity="0"/>
+                  <stop offset="0%" stop-color="#2563EB" stop-opacity="0.45"/>
+                  <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
                 </linearGradient>
               </defs>
             </svg>
           </div>
         ` : ""}
-        <div class="user-dot">
+        <div class="relative w-5 h-5 bg-primary border-[3px] border-white rounded-full shadow-[0_2px_10px_rgb(37,99,235,0.5)] z-2 flex items-center justify-center">
           ${hasHeading ? `<div class="user-heading-arrow" style="transform: rotate(${heading}deg)">&#9650;</div>` : ""}
         </div>
+        <div class="absolute inset-0 m-auto w-10 h-10 rounded-full border-2 border-primary/20 animate-[gpsPulse_2.2s_ease-out_infinite] pointer-events-none"></div>
       </div>
     `,
     iconSize: [40, 40],
@@ -223,45 +279,68 @@ function makeUserIcon(heading) {
   });
 }
 
-const indoorUserIcon = L.divIcon({
-  className: "indoor-location-marker",
-  html: `
-    <div class="indoor-user-wrap">
-      <div class="indoor-dot"></div>
-      <div class="indoor-pulse"></div>
-    </div>
-  `,
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-});
+const indoorUserIcon = makeUserIcon(null); // Indoor uses the same blue pulse now
 
-const indoorDestinationIcon = L.divIcon({
-  className: "indoor-destination-marker",
-  html: `
-    <div class="indoor-dest-wrap">
-      <div class="indoor-dest-pulse"></div>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 48" width="26" height="35" class="indoor-dest-svg">
-        <path d="M18 2C10.3 2 4 8.2 4 16c0 10.5 14 28.5 14 28.5S32 26.5 32 16C32 8.2 25.7 2 18 2Z" fill="#e5484d" stroke="white" stroke-width="2"/>
-        <circle cx="18" cy="16" r="7" fill="white"/>
-        <path d="M15 16.2l2.1 2.1 4.2-4.4" fill="none" stroke="#e5484d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-  `,
-  iconSize: [26, 35],
-  iconAnchor: [13, 35],
-  popupAnchor: [0, -35],
-});
+const indoorDestinationIcon = destinationIcon; // Same destination marker
 
-const outdoorPointIcon = L.divIcon({
-  className: "outdoor-location-marker",
-  html: `<div class="outdoor-location-dot"></div>`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
-});
+// ─── Room-label icon ─────────────────────────────────────────────────────────
+// Node ID prefixes that are routing/infrastructure nodes — skip labels for these.
+const LABEL_SKIP_PREFIXES = [
+  "co_", "entrance_",
+  "stairsA_", "stairsB_", "stairsC_", "ch_stairs",
+  "liftA_", "liftB_", "liftC_", "lift_", "stair",
+];
+
+function shouldShowLabel(id, node) {
+  const idLower = (id || "").toLowerCase();
+  // Always skip corridor / infrastructure nodes
+  if (LABEL_SKIP_PREFIXES.some((p) => idLower.startsWith(p.toLowerCase()))) return false;
+  // Show if the node has a meaningful label (different from the raw id)
+  if (node.label && node.label !== id) return true;
+  // Rooms without a label: show the ID if it looks like a room number (e.g. N301, N401)
+  if (!node.label && /^[A-Z]\d{3,4}$/.test(id)) return true;
+  return false;
+}
+
+function makeRoomLabelIcon(label, zoomLevel) {
+  // Scale across the indoor zoom range 20.75 – 24.5
+  const z = zoomLevel || INDOOR_ZOOM.overview;
+  const fontSize = Math.max(6, Math.min(9, 6 + ((z - 21.5) / (24.5 - 21.5)) * 3));
+  const py = z < 22 ? 1 : 2;
+  const px = z < 22 ? 3 : 5;
+  const iconW = Math.round(fontSize * 10);
+  const iconH = Math.round(fontSize * 2.8);
+
+  return L.divIcon({
+    className: "",
+    html: `
+      <div style="
+        white-space: nowrap;
+        font-size: ${fontSize}px;
+        font-family: 'Inter', 'Segoe UI', sans-serif;
+        font-weight: 700;
+        color: #0f172a;
+        background: rgba(255,255,255,0.28);
+        backdrop-filter: blur(2px);
+        padding: ${py}px ${px}px;
+        border-radius: 3px;
+        border: 1px solid rgba(0,0,0,0.07);
+        pointer-events: none;
+        max-width: ${iconW}px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: center;
+        line-height: 1.25;
+      ">${label}</div>
+    `,
+    iconSize: [iconW, iconH],
+    iconAnchor: [iconW / 2, iconH / 2],
+  });
+}
 
 const routeEndpointIcon = L.divIcon({
   className: "route-endpoint-icon",
-  html: '<div class="route-endpoint-dot" aria-label="Route endpoint"></div>',
+  html: '<div class="w-4.5 h-4.5 border-4 border-white rounded-full bg-red-500 shadow-[0_1px_5px_rgb(0,0,0,0.35)]" aria-label="Route endpoint"></div>',
   iconSize: [18, 18],
   iconAnchor: [9, 9],
 });
@@ -351,13 +430,19 @@ function CampusMap({
   setIndoorUserLocation,
   setIndoorStart,
   isOutdoorNavigating = false,
+  isIndoorNavigating = false,
+  indoorRouteIndex = 0,
+  onNextIndoorStep,
   useDebugLocation = false,
   activeFloorImages,
   activeIndoorNodes,
   // activeIndoorEdges,
 }) {
+  const { locations: LOCATIONS } = useDatabase();
   const [liveLocation, setLiveLocation] = useState(currentLocation);
   const [liveHeading, setLiveHeading] = useState(heading);
+  const [mapBearing, setMapBearing] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(OUTDOOR_ZOOM.default);
 
   useEffect(() => {
     if (!subscribeToLocation) return undefined;
@@ -371,6 +456,7 @@ function CampusMap({
 
   // Compute visible indoor route filtered to current floor
   const visibleIndoorRoute = indoorRouteNodes
+    .slice(indoorRouteIndex)
     .filter((id) => activeIndoorNodes[id]?.floor === currentFloor)
     .map((id) => activeIndoorNodes[id].position);
 
@@ -424,14 +510,15 @@ function CampusMap({
 
   return (
     <MapContainer
+      key={mapMode === "INDOOR" ? "indoor-map" : "outdoor-map"}
       center={[10.354098, 76.212307]}
       zoom={OUTDOOR_ZOOM.default}
       maxBounds={
         mapMode === "OUTDOOR"
-          ? CAMPUS_BOUNDS
+          ? (route.length < 2 ? CAMPUS_BOUNDS : null)
           : activeFloorImages[currentFloor]?.bounds
       }
-      maxBoundsViscosity={mapMode === "OUTDOOR" ? 1 : 0}
+      maxBoundsViscosity={1.0}
       minZoom={OUTDOOR_ZOOM.min}
       maxZoom={OUTDOOR_ZOOM.max}
       zoomControl={mapMode === "INDOOR"}
@@ -441,7 +528,7 @@ function CampusMap({
       touchZoom
       pinchZoom
       zoomSnap={0.25}
-      rotate
+      rotate={mapMode === "INDOOR"}
       rotateControl={false}
       boxZoom={false}
       bounceAtZoomLimits={false}
@@ -475,6 +562,8 @@ function CampusMap({
         activeIndoorNodes={activeIndoorNodes}
       />
       <MapEventBridge mapMode={mapMode} />
+      <MapRotationListener onChange={setMapBearing} />
+      <MapZoomListener onChange={setZoomLevel} />
       {/* GPS auto-center on first fix; smooth pan during active navigation */}
       <LocationManager
         subscribeToLocation={subscribeToLocation}
@@ -566,7 +655,7 @@ function CampusMap({
                 <Marker
                   key={a.key}
                   position={a.position}
-                  icon={makeArrowIcon(a.bearing, a.turnDiff)}
+                  icon={makeArrowIcon(a.bearing, a.turnDiff, mapBearing)}
                   interactive={false}
                 />
               ))}
@@ -580,7 +669,7 @@ function CampusMap({
               key={location.id}
               location={location}
               selectedLocation={selectedLocation}
-              icon={outdoorPointIcon}
+              icon={getPremiumIcon(location.type || location.category || location.id, location.name || location.title, zoomLevel)}
             />
           ))}
 
@@ -619,24 +708,38 @@ function CampusMap({
       )}
 
       {/* Building labels — always visible */}
-      {BUILDINGS.map((building, index) => (
-        <Marker
-          key={index}
-          position={building.position}
-          icon={L.divIcon({
-            className: "building-label",
-            html: `<div>${building.name}</div>`,
-            iconSize: [120, 25],
-            iconAnchor: [60, 12],
-          })}
-        />
-      ))}
+      {BUILDINGS.map((building, index) => {
+        // Calculate font size based on zoomLevel
+        // Default font-size is 12px at zoom 17.5.
+        // zoom <= 16.5: size = 9px
+        // zoom >= 19: size = 15px
+        let fontSize = 12;
+        if (zoomLevel <= 16.5) fontSize = 9;
+        else if (zoomLevel >= 19) fontSize = 15;
+        else {
+          fontSize = 9 + ((zoomLevel - 16.5) / (19 - 16.5)) * (15 - 9);
+        }
+
+        return (
+          <Marker
+            key={index}
+            position={building.position}
+            icon={L.divIcon({
+              className: "building-label",
+              html: `<div style="font-size: ${fontSize}px;">${building.name}</div>`,
+              iconSize: [120, 30],
+              iconAnchor: [60, 15],
+            })}
+          />
+        );
+      })}
 
       {/* ── INDOOR MODE ────────────────────────────────────────────────── */}
       {mapMode === "INDOOR" && activeFloorImages[currentFloor] && (
         <>
           <ImageOverlay
             key={currentFloor}
+            className="floor-image-overlay-transition"
             url={activeFloorImages[currentFloor].url}
             bounds={activeFloorImages[currentFloor].bounds}
             opacity={1}
@@ -649,6 +752,22 @@ function CampusMap({
               },
             }}
           />
+
+          {/* Room name labels — scale with zoom, rotate with the floor plan image */}
+          {zoomLevel >= 21.0 && Object.entries(activeIndoorNodes)
+            .filter(([id, node]) =>
+              (node.floor === currentFloor || node.floor === "ALL") &&
+              shouldShowLabel(id, node)
+            )
+            .map(([id, node]) => (
+              <Marker
+                key={`label-${id}`}
+                position={node.position}
+                icon={makeRoomLabelIcon(node.label || id, zoomLevel)}
+                interactive={false}
+                zIndexOffset={50}
+              />
+            ))}
 
           {/* Debug node markers */}
           {(SHOW_INDOOR_DEBUG_MARKERS || SHOW_INDOOR_DEBUG_TOOLS) &&
@@ -710,7 +829,7 @@ function CampusMap({
                 <Marker
                   key={a.key}
                   position={a.position}
-                  icon={makeArrowIcon(a.bearing, a.turnDiff)}
+                  icon={makeArrowIcon(a.bearing, a.turnDiff, mapBearing)}
                   interactive={false}
                 />
               ))}
@@ -724,7 +843,7 @@ function CampusMap({
               <Marker
                 position={indoorUserLocation.position}
                 icon={indoorUserIcon}
-                draggable={true}
+                draggable={false}
                 zIndexOffset={1000}
                 eventHandlers={{
                   dragend: (e) => {
@@ -770,6 +889,24 @@ function CampusMap({
         </>
       )}
 
+      {/* Route Guidance Card Overlay (Removed as requested)
+      {(isOutdoorNavigating || (isIndoorNavigating && visibleIndoorRoute.length > 0)) && (
+        <div style={{ position: "absolute", top: 16, left: 16, right: 16, zIndex: 1000, pointerEvents: "none" }}>
+          <div style={{ pointerEvents: "auto" }}>
+            <RouteGuidanceCard
+              path={mapMode === "INDOOR" ? visibleIndoorRoute : visibleOutdoorRoute}
+              indoor={mapMode === "INDOOR"}
+              destination={destination}
+              onNextStep={mapMode === "INDOOR" ? onNextIndoorStep : null}
+            />
+          </div>
+        </div>
+      )}
+      */}
+
+      {/* Floating Map Controls overlay */}
+      <CustomMapControls mapMode={mapMode} currentLocation={currentLocation} />
+
       {/* Fly-to helpers */}
       <FlyToLocation location={mapCenter} mapMode={mapMode} />
     </MapContainer>
@@ -808,12 +945,16 @@ function trimRouteFromLocation(route, location) {
 function FlyToLocation({ location, mapMode }) {
   const map = useMap();
   useEffect(() => {
-    if (mapMode !== "OUTDOOR") return;
     if (!location?.position) return;
     const id = requestAnimationFrame(() => {
-      // Never zoom out when the user asks for their location.  This makes the
-      // control behave like a native map "my location" FAB.
-      map.flyTo(location.position, Math.max(map.getZoom(), OUTDOOR_ZOOM.default), { duration: 0.8 });
+      if (mapMode === "OUTDOOR") {
+        // Never zoom out when the user asks for their location.  This makes the
+        // control behave like a native map "my location" FAB.
+        map.flyTo(location.position, Math.max(map.getZoom(), OUTDOOR_ZOOM.default), { duration: 0.8 });
+      } else {
+        // Indoor smooth focus zoom
+        map.flyTo(location.position, Math.max(map.getZoom(), INDOOR_ZOOM.overview + 0.75), { duration: 0.8 });
+      }
     });
     return () => cancelAnimationFrame(id);
   }, [location?.id, location?.position, map, mapMode]);
@@ -832,41 +973,70 @@ function MapZoomManager({
   const map = useMap();
   const prevModeRef = useRef(mapMode);
   const prevFloorRef = useRef(currentFloor);
+  const prevImagesRef = useRef(activeFloorImages);
+  const lastModeRef = useRef(mapMode);
 
   // Update zoom/bounds when mode or floor changes
   useEffect(() => {
+    const wasIndoor = lastModeRef.current === "INDOOR";
+    lastModeRef.current = mapMode;
+
     if (mapMode === "OUTDOOR") {
       map.setMinZoom(OUTDOOR_ZOOM.min);
       map.setMaxZoom(OUTDOOR_ZOOM.max);
-      map.setMaxBounds(CAMPUS_BOUNDS);
+      
+      // Clear maxBounds during routing to allow map movement and avoid layer shifting
+      if (route.length < 2) {
+        map.setMaxBounds(CAMPUS_BOUNDS);
+      } else {
+        map.setMaxBounds(null);
+      }
+
+      // Smooth zoom back to campus overview when resetting/exiting indoor mode
+      if (wasIndoor && route.length < 2) {
+        if (map.setBearing) {
+          map.setBearing(0, { animate: true, duration: 0.8 });
+        }
+        map.flyTo([10.3575, 76.2127], OUTDOOR_ZOOM.default, {
+          animate: true,
+          duration: 1.0,
+        });
+      }
     } else {
       map.setMinZoom(INDOOR_ZOOM.min);
       map.setMaxZoom(INDOOR_ZOOM.max);
       if (activeFloorImages[currentFloor]) {
+        // Enforce solid boundary constraints around the indoor floor plan
+        map.setMaxBounds(activeFloorImages[currentFloor].bounds);
+      } else {
         map.setMaxBounds(null);
       }
     }
     requestAnimationFrame(() => map.invalidateSize());
-  }, [map, mapMode, currentFloor]);
+  }, [map, mapMode, currentFloor, activeFloorImages, route]);
 
-  // When entering indoor mode or changing floor: fit the full floor image
+  // When entering indoor mode, changing floor, or switching buildings: fit the full floor image
   useEffect(() => {
     const modeChanged = prevModeRef.current !== mapMode;
     const floorChanged = prevFloorRef.current !== currentFloor;
+    const imagesChanged = prevImagesRef.current !== activeFloorImages;
     prevModeRef.current = mapMode;
     prevFloorRef.current = currentFloor;
+    prevImagesRef.current = activeFloorImages;
 
     if (mapMode !== "INDOOR") return;
     if (!activeFloorImages[currentFloor]) return;
 
-    if (modeChanged) {
+    if (modeChanged || imagesChanged || floorChanged) {
       requestAnimationFrame(() => {
         map.fitBounds(activeFloorImages[currentFloor].bounds, {
           maxZoom: INDOOR_ZOOM.overview + 0.5,
+          animate: true,
+          duration: 1.0,
         });
       });
     }
-  }, [map, mapMode, currentFloor]);
+  }, [map, mapMode, currentFloor, activeFloorImages]);
 
   // Fit outdoor route bounds
   useEffect(() => {
@@ -910,33 +1080,6 @@ function MapZoomManager({
     if (!map.setBearing) return;
 
     if (mapMode === "INDOOR") {
-      const isChavara = activeFloorImages === CHAVARA_FLOOR_IMAGES;
-      if (isChavara) {
-        map.setBearing(0, { animate: false });
-
-        const userPos = indoorUserLocation?.position || (visibleIndoorRoute.length > 0 ? visibleIndoorRoute[0] : null);
-        if (userPos && visibleIndoorRoute.length >= 2) {
-          requestAnimationFrame(() => {
-            map.setView(userPos, 22, {
-              animate: true,
-              duration: 1.2,
-            });
-          });
-        } else {
-          requestAnimationFrame(() => {
-            if (activeFloorImages[currentFloor]) {
-              map.fitBounds(activeFloorImages[currentFloor].bounds, {
-                maxZoom: INDOOR_ZOOM.overview + 0.5,
-                padding: [30, 30],
-                animate: true,
-                duration: 1.2,
-              });
-            }
-          });
-        }
-        return;
-      }
-
       const userPos = indoorUserLocation?.position || (visibleIndoorRoute.length > 0 ? visibleIndoorRoute[0] : null);
 
       if (!userPos) {
@@ -944,57 +1087,22 @@ function MapZoomManager({
         return;
       }
 
-      let snapped = 0;
-
       if (visibleIndoorRoute.length >= 2) {
-        // Path-based rotation: put the direction of the next node at the TOP of the screen
+        // Path-based rotation: put the direction of the next node EXACTLY at the TOP of the screen (Track-Up mode)
         const nextNode = visibleIndoorRoute[1];
         const pathBearing = getBearing(userPos, nextNode);
-        snapped = (360 - (Math.round(pathBearing / 90) * 90)) % 360;
+        const exactBearing = (360 - pathBearing) % 360;
 
-        map.setBearing(snapped, { animate: true });
-
-        // Center on the user's location with a high zoom for close-up navigation
-        requestAnimationFrame(() => {
-          map.setView(userPos, 22, {
-            animate: true,
-            duration: 1.2,
-          });
-        });
+        // Smooth rotation
+        map.setBearing(exactBearing, { animate: true, duration: 1.5 });
       } else {
-        // Side-based rotation: determine side relative to the nodes center
-        const nodeCenter = getFloorNodesCenter(currentFloor);
-        const centerToUser = getBearing(nodeCenter, userPos);
-
-        if (centerToUser >= 135 && centerToUser < 225) {
-          snapped = 0; // South -> bottom (0)
-        } else if (centerToUser >= 225 && centerToUser < 315) {
-          snapped = 270; // West -> bottom (270)
-        } else if (centerToUser >= 315 || centerToUser < 45) {
-          snapped = 180; // North -> bottom (180)
-        } else {
-          snapped = 90; // East -> bottom (90)
-        }
-
-        map.setBearing(snapped, { animate: true });
-
-        // Fit the entire floor plan for overview
-        requestAnimationFrame(() => {
-          if (activeFloorImages[currentFloor]) {
-            map.fitBounds(activeFloorImages[currentFloor].bounds, {
-              maxZoom: INDOOR_ZOOM.overview + 0.5,
-              padding: [30, 30],
-              animate: true,
-              duration: 1.2,
-            });
-          }
-        });
+        map.setBearing(0, { animate: true });
       }
     } else {
       // Outdoor — reset to north-up
       map.setBearing(0, { animate: false });
     }
-  }, [map, mapMode, visibleIndoorRoute, indoorUserLocation, currentFloor]);
+  }, [map, mapMode, visibleIndoorRoute, indoorUserLocation]);
 
   return null;
 }
@@ -1010,6 +1118,41 @@ function MapEventBridge({ mapMode }) {
   useEffect(() => {
     requestAnimationFrame(() => map.invalidateSize());
   }, [map, mapMode]);
+  return null;
+}
+
+/** Listens to Leaflet rotation events to update state. */
+function MapRotationListener({ onChange }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+    const handleRotate = () => {
+      onChange(map.getBearing() || 0);
+    };
+    map.on("rotate", handleRotate);
+    // Initial fetch
+    onChange(map.getBearing() || 0);
+    return () => {
+      map.off("rotate", handleRotate);
+    };
+  }, [map, onChange]);
+  return null;
+}
+
+/** Listens to map zoom events and reports zoom level back. */
+function MapZoomListener({ onChange }) {
+  const map = useMap();
+  useMapEvents({
+    zoom: () => {
+      onChange(map.getZoom());
+    },
+    zoomend: () => {
+      onChange(map.getZoom());
+    }
+  });
+  useEffect(() => {
+    onChange(map.getZoom());
+  }, [map, onChange]);
   return null;
 }
 
@@ -1093,3 +1236,38 @@ function LocationManager({ subscribeToLocation, isOutdoorNavigating, useDebugLoc
 }
 
 export default CampusMap;
+
+// ─── Floating Map Controls ──────────────────────────────────────────────────
+function CustomMapControls({ mapMode, currentLocation }) {
+  const map = useMap();
+
+  if (mapMode === "INDOOR") return null;
+
+  return (
+    <div className="absolute right-4 top-50 flex flex-col gap-3 z-1400 pointer-events-none">
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          if (currentLocation) {
+            map.flyTo([currentLocation.lat, currentLocation.lng], Math.max(map.getZoom(), OUTDOOR_ZOOM.default), { duration: 0.8 });
+          }
+        }}
+        className="pointer-events-auto bg-white/95 backdrop-blur-md w-11 h-11 rounded-full shadow-[0_4px_16px_rgb(0,0,0,0.1)] border border-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
+        title="My Location"
+      >
+        <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-700 relative flex items-center justify-center"><div className="w-1.5 h-1.5 bg-gray-700 rounded-full"></div></div>
+      </button>
+
+      <div className="pointer-events-auto flex flex-col bg-white/95 backdrop-blur-md rounded-[20px] shadow-[0_4px_16px_rgb(0,0,0,0.1)] border border-gray-100 overflow-hidden mt-1">
+        <button
+          onClick={(e) => { e.preventDefault(); map.zoomIn(); }}
+          className="w-11 h-10.5 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-gray-700 border-b border-gray-100 text-[22px] font-light"
+        >+</button>
+        <button
+          onClick={(e) => { e.preventDefault(); map.zoomOut(); }}
+          className="w-11 h-10.5 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-gray-700 text-[26px] font-light pb-1"
+        >−</button>
+      </div>
+    </div>
+  );
+}

@@ -14,6 +14,20 @@ export const LOCATION_POINTS = [
   },
 
   {
+    id: "chavara-entrance-1",
+    name: "Chavara Entrance 1",
+    position: [10.355879, 76.212411],
+    node: "chavara"
+  },
+
+  {
+    id: "chavara-entrance-2",
+    name: "Chavara Entrance 2",
+    position: [10.356395, 76.212414],
+    node: "p3"
+  },
+
+  {
     id: "stmarys",
     name: "St Mary's Block",
     position: [10.357903, 76.212941],

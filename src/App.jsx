@@ -1,29 +1,26 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
+import { Routes, Route } from "react-router-dom";
+import { Layers, Compass, Bell, User as UserIcon, Home, Map as MapIcon, Navigation as NavIcon, Heart, LayoutGrid } from "lucide-react";
 
-import CampusMap from "./components/CampusMap";
+const CampusMap = lazy(() => import("./components/map/CampusMap"));
 
-import SearchBar from "./components/SearchBar";
+
+import SearchBar from "./components/common/SearchBar";
 
 import { findPath } from "./utils/findPath";
 import { openGoogleMapsNavigation } from "./utils/openGoogleMaps";
 
-import { EDGES, NODES } from "./data/graph";
-
-import { INDOOR_EDGES } from "./data/indoorGraph";
-
-import { INDOOR_NODES } from "./data/indoorNodes";
+import { useDatabase } from "./context/DatabaseContext";
 
 import "./App.css";
 
-import FloorSelector from "./components/FloorSelector";
+import FloorSelector from "./components/map/FloorSelector";
 
 import useCurrentLocation from "./hooks/useCurrentLocation";
 
-import SearchChips from "./components/SearchChips";
+import SearchChips from "./components/common/SearchChips";
 
-import BottomSheet from "./components/BottomSheet";
-
-import { bottomSheetData } from "./data/bottomSheetData";
+import BottomSheet from "./components/common/BottomSheet";
 
 import { isInsideCampus } from "./utils/isInsideCampus";
 
@@ -31,16 +28,18 @@ import { CAMPUS_ENTRANCE } from "./data/campus";
 
 import { findNearestNode } from "./utils/findNearestNode";
 
-import IndoorRoutingCard from "./components/IndoorRoutingCard";
+import IndoorRoutingCard from "./components/routing/IndoorRoutingCard";
 
 import { findNearestLocation } from "./utils/findNearestLocation";
 import { findNearestQRLocation } from "./utils/findNearestQRLocation";
-import { findNearestStMarysEntrance } from "./utils/findNearestEntrance";
+import { findNearestStMarysEntrance, findNearestBuildingEntrance, findNearestChavaraEntrance, findBestChavaraEntranceByPath } from "./utils/findNearestEntrance";
 import { calculateHaversineDistance } from "./utils/haversine";
-import { QR_LOCATIONS } from "./data/qrLocations";
-import { CHAVARA_INDOOR_NODES } from "./data/chavaraIndoorNodes";
-import { CHAVARA_INDOOR_EDGES } from "./data/chavaraIndoorGraph";
 import { FLOOR_IMAGES, CHAVARA_FLOOR_IMAGES } from "./data/floorImages";
+import { FLOORS } from "./data/floors";
+import LoadingScreen from "./components/common/LoadingScreen";
+import YDCard from "./components/common/YDCard";
+import { detectNearbyBuilding, getBuildingDisplayName } from "./utils/buildingPolygons";
+
 
 
 const STEPS = {
@@ -50,6 +49,8 @@ const STEPS = {
   OUTDOOR_ROUTE: "OUTDOOR_ROUTE",
 
   OUTDOOR_NAVIGATING: "OUTDOOR_NAVIGATING",
+
+  OUTDOOR_ARRIVED: "OUTDOOR_ARRIVED",
 
   GO_TO_ENTRANCE: "GO_TO_ENTRANCE",
 
@@ -93,6 +94,15 @@ const floorEntryMap = {
 
 };
 
+const getOutdoorExitNode = (indoorExitNode) => {
+  if (indoorExitNode === "entrance_G2") return "p3";
+  if (indoorExitNode === "entrance_G1") return "chavara";
+  if (indoorExitNode === "entrance_G") return "g";
+  if (indoorExitNode === "entrance_B1") return "b1";
+  if (indoorExitNode === "entrance_B2") return "b2";
+  return null;
+};
+
 const indoorEntranceByFloor = {
 
   B2: "entrance_B2",
@@ -108,6 +118,7 @@ const outdoorEntranceFloor = {
   b1: "B1",
   g: "G",
   chavara: "G",
+  p3: "G",
 };
 
 function normalizeFloor(floor) {
@@ -120,12 +131,29 @@ function normalizeFloor(floor) {
   return floor;
 }
 
+function isChavaraBuilding(building) {
+  if (!building) return false;
+  const b = building.toLowerCase();
+  return b.includes("chavara");
+}
+
+function getIndoorEntranceNode(building, outdoorEntrance, _userLoc = null) {
+  if (isChavaraBuilding(building)) {
+    // The outdoor pathfinding already routed to the nearest Chavara entrance
+    // node (either "chavara" = Entrance 1, or "p3" = Entrance 2), so we
+    // derive the indoor entrance directly from that instead of re-computing
+    // GPS distance (which doesn't work in debug mode anyway).
+    return outdoorEntrance === "p3" ? "entrance_G2" : "entrance_G1";
+  }
+  return indoorEntranceByFloor[outdoorEntranceFloor[outdoorEntrance] || "G"];
+}
+
 // ── GPS debug toggle ─────────────────────────────────────────────────────────
 // Set to true while testing away from campus; set it back to false for real GPS.
-const USE_DEBUG_LOCATION = true;
+const USE_DEBUG_LOCATION = false;
 const USER_LOCATION = {
-  lat: 10.358006,
-  lng: 76.213215,
+  lat: 10.356376, 
+  lng: 76.212662,
 };
 
 // St Mary's Block main entrance – used for geofence proximity check
@@ -152,7 +180,20 @@ const routeLengthMeters = (path) => path.slice(1).reduce(
   0
 );
 
-function App() {
+function MainApp() {
+  const {
+    loading: dbLoading,
+    locations,
+    nodes: NODES,
+    edges: EDGES,
+    indoorNodes: INDOOR_NODES,
+    indoorEdges: INDOOR_EDGES,
+    chavaraIndoorNodes: CHAVARA_INDOOR_NODES,
+    chavaraIndoorEdges: CHAVARA_INDOOR_EDGES,
+    qrLocations: QR_LOCATIONS,
+    bottomSheetData,
+    searchItems: SEARCH_ITEMS,
+  } = useDatabase();
 
   const [selectedLocation, setSelectedLocation] = useState(null);
 
@@ -173,7 +214,24 @@ function App() {
   const [indoorRoute, setIndoorRoute] = useState([]);
 
   const [indoorRouteNodes, setIndoorRouteNodes] = useState([]);
+  const [indoorRouteIndex, setIndoorRouteIndex] = useState(0);
 
+  // Reset index when route changes
+  useEffect(() => {
+    setIndoorRouteIndex(0);
+  }, [indoorRouteNodes]);
+
+  const handleNextIndoorStep = () => {
+    setIndoorRouteIndex((prevIndex) => {
+      const nextIndex = Math.min(prevIndex + 1, indoorRouteNodes.length - 1);
+
+      // If we reached the final destination node
+      if (nextIndex === indoorRouteNodes.length - 1) {
+        setTimeout(() => setNavStep(STEPS.COMPLETED), 1500); // Complete navigation after a short delay
+      }
+      return nextIndex;
+    });
+  };
 
   const {
     location,
@@ -187,9 +245,54 @@ function App() {
     gpsDistanceMeters,
   } = useCurrentLocation();
 
+  const [isAppLoading, setIsAppLoading] = useState(true);
+  const [minLoadingTimePassed, setMinLoadingTimePassed] = useState(false);
+
+  // ── New workflow state ─────────────────────────────────────────────────────
+  // Controls single search bar vs YD Card in outdoor mode.
+  // true  = "Start Navigation" was clicked → show YD Card
+  // false = initial state → show single SearchBar
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // Building detected via GPS polygon check on initial load.
+  // "chavara" | "stmarys" | null
+  const [detectedBuilding, setDetectedBuilding] = useState(null);
+
+  // When true, show the "Are you inside [Building]?" modal.
+  const [showBuildingModal, setShowBuildingModal] = useState(false);
+
+  // Tracks whether the building check on load has already been run
+  // so we don't show the modal again after the user dismisses it.
+  const buildingCheckDoneRef = useRef(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMinLoadingTimePassed(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     console.log("Current Location:", location);
-  }, [location]);
+    if ((location || USE_DEBUG_LOCATION || ["ok", "poor", "failed", "timeout"].includes(gpsStatus)) && minLoadingTimePassed) {
+      const timer = setTimeout(() => {
+        setIsAppLoading(false);
+
+        // Run building detection once, right when the loading screen hides
+        if (!buildingCheckDoneRef.current) {
+          buildingCheckDoneRef.current = true;
+          const checkLoc = USE_DEBUG_LOCATION ? USER_LOCATION : (location || null);
+          if (checkLoc?.lat && checkLoc?.lng) {
+            const detected = detectNearbyBuilding(checkLoc.lat, checkLoc.lng);
+            if (detected) {
+              setDetectedBuilding(detected);
+              setShowBuildingModal(true);
+            }
+          }
+        }
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [location, gpsStatus, minLoadingTimePassed]);
+
 
   // console.log("Current Location:", currentLocation);
 
@@ -198,7 +301,7 @@ function App() {
   const [sheetTitle, setSheetTitle] = useState("");
 
   const [sheetData, setSheetData] = useState(null);
-
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedDepartment, setSelectedDepartment] = useState(null);
 
   const [indoorUserLocation, setIndoorUserLocation] = useState(null);
@@ -216,7 +319,28 @@ function App() {
   const [outdoorStartNode, setOutdoorStartNode] = useState(null);
 
 
-  const getExitNode = (floor) => `entrance_${floor}`;
+  const getExitNode = (floor) => {
+    if (currentBuilding === "chavara") {
+      const destPos = destination?.position || (destination?.routeNode ? NODES[destination.routeNode] : null) || (destination?.id ? NODES[destination.id] : null);
+      if (destPos) {
+        const distG1 = calculateHaversineDistance(
+          destPos[0],
+          destPos[1],
+          CHAVARA_INDOOR_NODES.entrance_G1.position[0],
+          CHAVARA_INDOOR_NODES.entrance_G1.position[1]
+        );
+        const distG2 = calculateHaversineDistance(
+          destPos[0],
+          destPos[1],
+          CHAVARA_INDOOR_NODES.entrance_G2.position[0],
+          CHAVARA_INDOOR_NODES.entrance_G2.position[1]
+        );
+        return distG1 < distG2 ? "entrance_G1" : "entrance_G2";
+      }
+      return selectedEntrance === "p3" ? "entrance_G2" : "entrance_G1";
+    }
+    return `entrance_${floor}`;
+  };
 
   const [remainingRoute, setRemainingRoute] = useState([]);
   const [nearestDebugNode, setNearestDebugNode] = useState(null);
@@ -235,7 +359,8 @@ function App() {
   const entranceMilestoneRef = useRef({ reached: false, consecutiveFixes: 0 });
   const outdoorArrivalRef = useRef({ reached: false, consecutiveFixes: 0 });
   const [qrSimOpen, setQrSimOpen] = useState(false);
-
+  const [assumedIndoorMode, setAssumedIndoorMode] = useState(false);
+  const [selectedVerticalPrefix, setSelectedVerticalPrefix] = useState(null);
 
   // When debug mode is on, use fixed campus location; otherwise live GPS
   const locationToUse = USE_DEBUG_LOCATION
@@ -243,21 +368,62 @@ function App() {
     : snappedLocation || location;
   const [currentBuilding, setCurrentBuilding] = useState("stmarys");
 
-  useEffect(() => {
-    if (destination?.building) {
-      setCurrentBuilding(destination.building === "chavara" ? "chavara" : "stmarys");
+
+
+  // ── Normalize indoor graph to resolve spaces & case mismatches dynamically ──
+  const normalizedIndoorData = useMemo(() => {
+    const rawNodes = currentBuilding === "chavara" ? CHAVARA_INDOOR_NODES : INDOOR_NODES;
+    const rawEdges = currentBuilding === "chavara" ? CHAVARA_INDOOR_EDGES : INDOOR_EDGES;
+
+    const keyMap = {};
+    Object.keys(rawNodes).forEach((key) => {
+      keyMap[key.trim().toLowerCase()] = key;
+    });
+
+    const normalizeKey = (key) => {
+      if (!key) return key;
+      const clean = key.trim().toLowerCase();
+      return keyMap[clean] || key.trim();
+    };
+
+    const normalizedNodes = {};
+    Object.entries(rawNodes).forEach(([key, node]) => {
+      const cleanKey = normalizeKey(key);
+      normalizedNodes[cleanKey] = {
+        ...node,
+        id: cleanKey,
+      };
+    });
+
+    const normalizedEdges = rawEdges.map((edge) => {
+      const a = Array.isArray(edge) ? edge[0] : edge.source;
+      const b = Array.isArray(edge) ? edge[1] : edge.target;
+      return [normalizeKey(a), normalizeKey(b)];
+    });
+
+    // ── For St. Mary's: enrich nodes with human-readable names from FLOORS ──
+    // Build a lookup: roomId -> first meaningful name (skips entries where name===id)
+    if (currentBuilding !== "chavara") {
+      const roomNameLookup = {};
+      Object.values(FLOORS).forEach((floorData) => {
+        (floorData.rooms || []).forEach(({ id, name }) => {
+          if (name && name !== id && !roomNameLookup[id]) {
+            roomNameLookup[id] = name;
+          }
+        });
+      });
+      Object.keys(normalizedNodes).forEach((key) => {
+        const name = roomNameLookup[key];
+        if (name) normalizedNodes[key] = { ...normalizedNodes[key], label: name };
+      });
     }
-  }, [destination]);
 
-  const ACTIVE_INDOOR_NODES =
-    currentBuilding === "chavara"
-      ? CHAVARA_INDOOR_NODES
-      : INDOOR_NODES;
+    return { normalizedNodes, normalizedEdges, normalizeKey };
+  }, [currentBuilding]);
 
-  const ACTIVE_INDOOR_EDGES =
-    currentBuilding === "chavara"
-      ? CHAVARA_INDOOR_EDGES
-      : INDOOR_EDGES;
+  const ACTIVE_INDOOR_NODES = normalizedIndoorData.normalizedNodes;
+  const ACTIVE_INDOOR_EDGES = normalizedIndoorData.normalizedEdges;
+  const normalizeIndoorKey = normalizedIndoorData.normalizeKey;
 
   const ACTIVE_FLOOR_IMAGES =
     currentBuilding === "chavara"
@@ -307,34 +473,45 @@ function App() {
 
     if (outdoorArrivalRef.current.consecutiveFixes < OUTDOOR_ARRIVAL_CONFIRMATION_FIXES) return;
     outdoorArrivalRef.current.reached = true;
-    setNavStep((step) => step === STEPS.OUTDOOR_NAVIGATING ? STEPS.OUTDOOR_REACHED : step);
+    setNavStep((step) => step === STEPS.OUTDOOR_NAVIGATING ? STEPS.OUTDOOR_ARRIVED : step);
     setShowNavigationCard(true);
   }), [subscribeToLocation, gpsDistanceMeters]);
+
+  const triggerIndoorFallback = () => {
+    gpsFallbackShown.current = true;
+    const approximateLocation = getApproximateLocation() || getLatestLocation() || location || {
+      lat: NODES?.entrance?.[0] || 10.354064,
+      lng: NODES?.entrance?.[1] || 76.212318,
+    };
+    const nearestNode = findNearestNode(approximateLocation, NODES);
+    const nearestStMarysEntrance = findNearestStMarysEntrance(approximateLocation, NODES);
+    const nearestChavaraEntrance = findNearestChavaraEntrance(approximateLocation, NODES);
+    // If testing manually from home, the distance might be huge, so we force a building if needed
+    // We'll just assume they are near Chavara for the sake of the test if they are very far
+    const nearStMarys = nearestStMarysEntrance.distanceMeters <= ST_MARYS_GPS_FALLBACK_METERS;
+    let nearChavara = nearestChavaraEntrance.distanceMeters <= ST_MARYS_GPS_FALLBACK_METERS;
+
+    if (!nearStMarys && !nearChavara) {
+      nearChavara = true; // Fallback for manual testing
+    }
+
+    setSnappedLocation(approximateLocation);
+    setOutdoorStartNode(nearestNode);
+    setMapCenter({ id: `fallback-${Date.now()}`, position: [approximateLocation.lat, approximateLocation.lng] });
+    if ((nearStMarys || nearChavara) && (!destination || isIndoorDestination(destination))) {
+      setSelectedEntrance(nearChavara ? nearestChavaraEntrance.nodeId : nearestStMarysEntrance.nodeId);
+      setNavStep(STEPS.ASK_INSIDE_BUILDING);
+    } else if (destination && navStep === STEPS.OUTDOOR_ROUTE) {
+      startOutdoorNavigation(nearestNode, approximateLocation);
+    }
+  };
 
   // St Mary's is the only mapped indoor building. Everywhere else falls back
   // to the nearest outdoor graph node instead of opening an indoor prompt.
   useEffect(() => {
     if (USE_DEBUG_LOCATION || gpsFallbackShown.current || mapMode === "INDOOR") return;
     if (!['timeout', 'failed'].includes(gpsStatus)) return;
-    gpsFallbackShown.current = true;
-    const approximateLocation = getApproximateLocation() || getLatestLocation() || location || {
-      lat: NODES.entrance[0],
-      lng: NODES.entrance[1],
-    };
-    const nearestNode = findNearestNode(approximateLocation);
-    const nearestStMarysEntrance = findNearestStMarysEntrance(approximateLocation);
-    const nearStMarys = nearestStMarysEntrance.distanceMeters <= ST_MARYS_GPS_FALLBACK_METERS;
-
-    setSnappedLocation(approximateLocation);
-    setOutdoorStartNode(nearestNode);
-    if (nearStMarys && (!destination || isIndoorDestination(destination))) {
-      setSelectedEntrance(nearestStMarysEntrance.nodeId);
-      setNavStep(STEPS.ASK_INSIDE_BUILDING);
-    } else if (destination && navStep === STEPS.OUTDOOR_ROUTE) {
-      // A destination is already selected: continue outdoors from the nearest
-      // known graph node without making the user restart navigation.
-      startOutdoorNavigation(nearestNode, approximateLocation);
-    }
+    triggerIndoorFallback();
   }, [gpsStatus, mapMode, destination, navStep, getApproximateLocation, getLatestLocation, location]);
 
   // Indoor routes cannot depend on GPS. Use the graph path length and a
@@ -347,7 +524,9 @@ function App() {
       setIndoorEtaSeconds(0);
       return undefined;
     }
-    const estimatedSeconds = Math.min(120, Math.max(8, Math.round(routeLengthMeters(indoorRoute) / 1.2)));
+    const estimatedSeconds = USE_DEBUG_LOCATION
+      ? 2
+      : Math.min(120, Math.max(8, Math.round(routeLengthMeters(indoorRoute) / 1.2)));
     setIndoorArrivalReady(false);
     setIndoorEtaSeconds(estimatedSeconds);
     const timer = window.setTimeout(() => setIndoorArrivalReady(true), estimatedSeconds * 1000);
@@ -356,6 +535,10 @@ function App() {
 
   useEffect(() => {
     const onPopState = () => {
+      if (window.__POPPING_SEARCH || window.__SEARCH_OPEN) {
+        return; // Ignore popstate if the search dropdown is managing its own history state
+      }
+
       // A system Back press ends the active route and returns to the clean
       // outdoor map. The next Back press is then handled by the browser/app
       // shell and returns to the page from which Campus RouteX was opened.
@@ -403,7 +586,13 @@ function App() {
   useEffect(() => {
     if (!locationToUse) return;
 
-    const nearest = findNearestLocation(locationToUse);
+    const pointsToSearch = locations.map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      position: loc.position,
+      node: loc.routeNode
+    }));
+    const nearest = findNearestLocation(locationToUse, pointsToSearch);
 
     console.log("Nearest location:", nearest);
 
@@ -462,8 +651,11 @@ function App() {
 
     setOutdoorStartNode(null);
 
+    // Reset the search UI back to the single search bar
+    setHasSearched(false);
 
   };
+
 
   const finishNavigation = () => {
     // Keep the indoor floor plan open after completion. The active navigation
@@ -494,21 +686,78 @@ function App() {
     const startLocation = USE_DEBUG_LOCATION
       ? USER_LOCATION
       : snappedLocation || fixedUserLocation || locationToUse;
-    const startNode = outdoorStartNode || (startLocation ? findNearestNode(startLocation) : "entrance");
     let endNode = target?.routeNode || target?.id;
 
     if (target?.location === "chavara") endNode = "chavara";
     if (isIndoorDestination(target)) {
-      endNode = findNearestStMarysEntrance(startLocation || { lat: NODES.entrance[0], lng: NODES.entrance[1] }).nodeId;
+      const isChav = isChavaraBuilding(target.building) || target.routeNode === "chavara";
+      if (isChav) {
+        // Use the outdoor graph to pick the entrance whose actual road path is
+        // shorter — this must match what startOutdoorNavigation will route to.
+        const nearestStartNode = findNearestNode(
+          startLocation || { lat: NODES?.entrance?.[0] || 10.354064, lng: NODES?.entrance?.[1] || 76.212318 },
+          NODES
+        );
+        endNode = findBestChavaraEntranceByPath(
+          nearestStartNode,
+          EDGES,
+          startLocation,
+          NODES
+        ).nodeId;
+      } else {
+        endNode = findNearestStMarysEntrance(
+          startLocation || { lat: NODES?.entrance?.[0] || 10.354064, lng: NODES?.entrance?.[1] || 76.212318 },
+          NODES
+        ).nodeId;
+      }
       setSelectedEntrance(endNode);
     }
-    if (!startNode || !endNode || !NODES[endNode]) return;
 
-    const graphRoute = getPathCoordinates(findPath(startNode, endNode, EDGES, NODES), NODES);
-    const startPosition = startLocation
-      ? [startLocation.lat, startLocation.lng]
-      : NODES[startNode];
-    setRoute(graphRoute.length ? [startPosition, ...graphRoute] : []);
+    // Determine the map center position to focus on the destination
+    let destPos = target?.position;
+    if (!destPos && endNode && NODES[endNode]) {
+      destPos = NODES[endNode];
+    } else if (!destPos && target?.id && NODES[target.id]) {
+      destPos = NODES[target.id];
+    }
+
+    if (destPos) {
+      setMapCenter({ id: `dest-focus-${Date.now()}`, position: destPos });
+    }
+
+    // Calculate the route path immediately and set it so the user sees it when selecting the destination
+    if (startLocation) {
+      const nearestNode = findNearestNode(startLocation, NODES);
+      let end;
+
+      if (target?.type === "faculty" || target?.type === "location") {
+        end = target.routeNode;
+      } else if (target?.type === "room") {
+        const isChavRoom = isChavaraBuilding(target.building) || target.routeNode === "chavara";
+        end = isChavRoom
+          ? findBestChavaraEntranceByPath(nearestNode, EDGES, startLocation).nodeId
+          : findNearestBuildingEntrance(startLocation, target.building || target.routeNode).nodeId;
+      } else {
+        end = target?.routeNode || target?.id;
+      }
+
+      if (isIndoorDestination(target)) {
+        const isChav = isChavaraBuilding(target.building) || target.routeNode === "chavara";
+        if (isChav) {
+          end = findBestChavaraEntranceByPath(nearestNode, EDGES, startLocation).nodeId;
+        } else {
+          end = findNearestBuildingEntrance(startLocation, target.building || target.routeNode).nodeId;
+        }
+      }
+
+      const nodePath = findPath(nearestNode, end, EDGES, NODES);
+      const graphRoute = getPathCoordinates(nodePath, NODES);
+      const userPos = [startLocation.lat, startLocation.lng];
+      const fullRoute = graphRoute.length > 0 ? [userPos, ...graphRoute] : graphRoute;
+      setRoute(fullRoute);
+    } else {
+      setRoute([]);
+    }
   };
 
   const startOutdoorNavigation = (startNode = null, startLocation = null) => {
@@ -524,14 +773,9 @@ function App() {
       : snappedLocation || fixedUserLocation || locationToUse);
     // console.log("Inside campus:", isInsideCampus(routeStartLocation));
     if (!startNode && !routeStartLocation) {
-
       alert("Location unavailable. Please enable GPS.");
-
       return;
-
     }
-
-
 
     if (!startNode && !isInsideCampus(routeStartLocation)) {
       // Off-campus: no polyline on our map — user should use External GPS
@@ -541,24 +785,24 @@ function App() {
       return;
     }
 
-
-
     // User is inside campus
-
-    // User is inside campus
-
     const nearestNode =
       startNode ||
       outdoorStartNode ||
-      findNearestNode(routeStartLocation);
-
+      findNearestNode(routeStartLocation, NODES);
 
     console.log("nearestNode:", nearestNode);
-
-
     console.log("Destination:", destination);
     console.log("Nearest Node:", nearestNode);
 
+    // Always choose an entrance from where the route actually starts.  A QR
+    // start does not have a live GPS coordinate, so use that outdoor node's
+    // coordinate instead of falling back to the destination floor.
+    const entranceSearchLocation = routeStartLocation || (
+      startNode && NODES[startNode]
+        ? { lat: NODES[startNode][0], lng: NODES[startNode][1] }
+        : null
+    );
 
     let end;
 
@@ -566,45 +810,33 @@ function App() {
       destination?.type === "faculty" ||
       destination?.type === "location"
     ) {
-
-      if (destination.location === "chavara") {
-
-        end = "chavara";
-        setNavigationMessage(
-          `${destination.name || destination.title || destination.department} is located in Chavara Block, ${destination.floor}`
-        );
-
-
-
-      } else {
-        end = destination.routeNode;
-      }
-
+      end = destination.routeNode;
     } else if (destination?.type === "room") {
-      if (destination.building === "chavara" || destination.routeNode === "chavara") {
-        end = "chavara";
-        setSelectedEntrance("chavara");
-      } else {
-        end = findNearestStMarysEntrance(routeStartLocation).nodeId;
-        setSelectedEntrance(end);
-      }
-
+      const isChavRoom = isChavaraBuilding(destination.building) || destination.routeNode === "chavara";
+      end = isChavRoom
+        ? findBestChavaraEntranceByPath(nearestNode, EDGES, entranceSearchLocation).nodeId
+        : findNearestBuildingEntrance(entranceSearchLocation, destination.building || destination.routeNode).nodeId;
+      setSelectedEntrance(end);
     } else {
-
       end = destination?.routeNode || destination?.id;
-
     }
 
-    // Apply the multi-entrance rule to every St Mary's indoor destination,
+    // Apply the multi-entrance rule to every indoor destination,
     // including faculty items that originated in the shared search dataset.
-    if (isIndoorDestination(destination) && routeStartLocation) {
-      if (destination.building === "chavara" || destination.routeNode === "chavara") {
-        end = "chavara";
-        setSelectedEntrance("chavara");
+    if (isIndoorDestination(destination) && entranceSearchLocation) {
+      const isChav = isChavaraBuilding(destination.building) || destination.routeNode === "chavara";
+      if (isChav) {
+        // Use the same graph-path Dijkstra so the entrance we set is
+        // EXACTLY the node the outdoor path will end at.
+        end = findBestChavaraEntranceByPath(
+          nearestNode,
+          EDGES,
+          entranceSearchLocation
+        ).nodeId;
       } else {
-        end = findNearestStMarysEntrance(routeStartLocation).nodeId;
-        setSelectedEntrance(end);
+        end = findNearestBuildingEntrance(entranceSearchLocation, destination.building || destination.routeNode).nodeId;
       }
+      setSelectedEntrance(end);
     }
 
     console.log("End node:", end);
@@ -630,24 +862,69 @@ function App() {
       setMapCenter({ id: `user-focus-${Date.now()}`, position: userPos });
     }
     setIsOutdoorNavigating(true);
+    // Convert the single search bar to the YD Card now that navigation is live
+    setHasSearched(true);
     pushState(STEPS.OUTDOOR_NAVIGATING);
   };
 
+
   const continueFromOutdoorEntrance = () => {
-    const entryFloor = outdoorEntranceFloor[selectedEntrance] || "G";
-    const startNode = indoorEntranceByFloor[entryFloor];
+    // For cross-building nav: selectedEntrance is set by startOutdoorNavigation.
+    // Derive a fallback from the outdoor route endpoint if it's somehow missing.
+    const effectiveEntrance = selectedEntrance || (
+      isChavaraBuilding(destination?.building)
+        ? "chavara"
+        : (outdoorEntranceFloor["g"] ? "g" : "g")
+    );
+    const entryFloor = outdoorEntranceFloor[effectiveEntrance] || "G";
+    const startNode = getIndoorEntranceNode(destination?.building, effectiveEntrance, locationToUse);
     const endNode = destination?.indoorNode || destination?.id;
     if (!startNode || !endNode) return;
 
+    const targetBuilding = isChavaraBuilding(destination?.building) ? "chavara" : "stmarys";
+
+    // Switch state for map rendering
+    setCurrentBuilding(targetBuilding);
+
+    const targetNodes = targetBuilding === "chavara" ? rawChavaraNodes : rawNodes;
+    const targetEdges = targetBuilding === "chavara" ? rawChavaraEdges : rawEdges;
+
+    const targetKeyMap = targetBuilding === "chavara" ? {
+      "stairs a": "stairsa", "stairs b": "stairsb", "lift a": "lifta", "lift b": "liftb"
+    } : {
+      "stair a": "stair", "stair b": "stair2", "lift": "lift"
+    };
+
+    const normKey = (k) => {
+      if (!k) return "";
+      const clean = k.trim().toLowerCase();
+      return targetKeyMap[clean] || k.trim();
+    };
+
+    const tempNodes = {};
+    Object.entries(targetNodes).forEach(([key, val]) => {
+      const clean = normKey(key);
+      tempNodes[clean] = { ...val, id: clean };
+    });
+
+    const tempEdges = targetEdges.map((edge) => {
+      const a = Array.isArray(edge) ? edge[0] : edge.source;
+      const b = Array.isArray(edge) ? edge[1] : edge.target;
+      return [normKey(a), normKey(b)];
+    });
+
+    const cleanStartNode = normKey(startNode);
+    const cleanEndNode = normKey(endNode);
+
     const start = {
-      name: ACTIVE_INDOOR_NODES[startNode]?.label || `${entryFloor} entrance`,
-      nearestNode: startNode,
+      name: tempNodes[cleanStartNode]?.label || `${entryFloor} entrance`,
+      nearestNode: cleanStartNode,
       floor: entryFloor,
     };
     setIndoorStart(start);
     setIndoorUserLocation({
-      position: ACTIVE_INDOOR_NODES[startNode].position,
-      nearestNode: startNode,
+      position: tempNodes[cleanStartNode].position,
+      nearestNode: cleanStartNode,
       floor: entryFloor,
     });
     setCurrentFloor(entryFloor);
@@ -661,14 +938,14 @@ function App() {
     }
 
     const indoorPath = findPath(
-      startNode,
-      endNode,
-      ACTIVE_INDOOR_EDGES,
-      ACTIVE_INDOOR_NODES
+      cleanStartNode,
+      cleanEndNode,
+      tempEdges,
+      tempNodes
     );
 
     setIndoorRouteNodes(indoorPath);
-    setIndoorRoute(getPathCoordinates(indoorPath, ACTIVE_INDOOR_NODES));
+    setIndoorRoute(getPathCoordinates(indoorPath, tempNodes));
     pushState(STEPS.FLOOR_NAVIGATION);
   };
 
@@ -677,30 +954,71 @@ function App() {
     console.log("mode:", mode);
     console.log("indoorStart:", indoorStart);
     console.log("currentFloor:", currentFloor);
-    const startNode = indoorStart?.nearestNode;
+    const startNode = indoorUserLocation?.nearestNode || indoorStart?.nearestNode;
 
     if (!startNode) return;
 
-    setTransportMode(mode);
-
-    // Determine target floor:
-    // - If going to an indoor room/faculty destination, target that destination floor
-    // - If going outdoors (no indoor floor on destination), always target Ground ("G")
     const activeIndoorDestination = indoorDestination || destination;
-    const isIndoorDest = Boolean(activeIndoorDestination?.floor);
+    const destBuildingNormalized = isChavaraBuilding(activeIndoorDestination?.building || activeIndoorDestination?.routeNode) ? "chavara" : "stmarys";
+    const isDifferentBuilding = currentBuilding !== destBuildingNormalized;
+    const isIndoorDest = Boolean(activeIndoorDestination?.floor) && !isDifferentBuilding;
     const targetFloor = isIndoorDest ? normalizeFloor(activeIndoorDestination.floor) : "G";
 
-    const endNode =
-      mode === "lift"
-        ? `lift_${currentFloor}`
-        : getStairNode(currentFloor, targetFloor);
+    let bestEndNode = null;
+    let bestPath = [];
+    let shortestDist = Infinity;
 
-    const path = findPath(
-      startNode,
-      endNode,
+    const getPathDistance = (path) => {
+      let dist = 0;
+      for (let i = 0; i < path.length - 1; i++) {
+        const p1 = ACTIVE_INDOOR_NODES[path[i]]?.position;
+        const p2 = ACTIVE_INDOOR_NODES[path[i + 1]]?.position;
+        if (p1 && p2) dist += Math.hypot(p1[0] - p2[0], p1[1] - p2[1]);
+        else dist += 1;
+      }
+      return dist;
+    };
+
+    if (currentBuilding === "chavara") {
+      const candidates = mode === "lift" ? ["liftA", "liftB", "liftC"] : ["ch_stairsA", "ch_stairsB"];
+      for (const prefix of candidates) {
+        const candidateNode = `${prefix}_${currentFloor}`;
+        const targetCandidate = `${prefix}_${targetFloor}`;
+        if (ACTIVE_INDOOR_NODES[candidateNode] && ACTIVE_INDOOR_NODES[targetCandidate]) {
+          const candidatePath = findPath(
+            normalizeIndoorKey(startNode),
+            normalizeIndoorKey(candidateNode),
+            ACTIVE_INDOOR_EDGES,
+            ACTIVE_INDOOR_NODES
+          );
+          if (candidatePath.length > 0) {
+            const dist = getPathDistance(candidatePath);
+            if (dist < shortestDist) {
+              shortestDist = dist;
+              bestEndNode = candidateNode;
+              bestPath = candidatePath;
+              setSelectedVerticalPrefix(prefix);
+            }
+          }
+        }
+      }
+    }
+
+    setTransportMode(mode);
+
+    const endNode = bestEndNode || (
+      mode === "lift"
+        ? (currentBuilding === "chavara" ? `liftA_${currentFloor}` : `lift_${currentFloor}`)
+        : getStairNodeForBuilding(currentFloor, targetFloor, currentBuilding)
+    );
+
+    const path = bestEndNode ? bestPath : findPath(
+      normalizeIndoorKey(startNode),
+      normalizeIndoorKey(endNode),
       ACTIVE_INDOOR_EDGES,
       ACTIVE_INDOOR_NODES
     );
+
     console.log("PATH:", path);
 
     setIndoorRouteNodes(path);
@@ -714,34 +1032,36 @@ function App() {
     const activeIndoorDestination = indoorDestination || destination;
     if (!activeIndoorDestination) return;
 
-    // Outdoor destination
-    const isIndoorDestination = Boolean(activeIndoorDestination.floor);
+    const destBuildingNormalized = isChavaraBuilding(activeIndoorDestination.building || activeIndoorDestination.routeNode) ? "chavara" : "stmarys";
+    const isDifferentBuilding = currentBuilding !== destBuildingNormalized;
+    const isIndoorDestination = Boolean(activeIndoorDestination.floor) && !isDifferentBuilding;
 
     if (!isIndoorDestination) {
       // Outdoor destination
       // We came from F1/F2
       const startNode =
         transportMode === "lift"
-          ? `lift_G`
-          : getStairNode("G", "G");
+          ? (currentBuilding === "chavara" ? "liftA_G" : "lift_G")
+          : getStairNodeForBuilding("G", "G", currentBuilding);
 
       // User has reached Ground Floor
       setCurrentFloor("G");
 
       setIndoorStart({
-        name: ACTIVE_INDOOR_NODES[startNode]?.label || startNode,
+        name: ACTIVE_INDOOR_NODES[normalizeIndoorKey(startNode)]?.label || startNode,
         nearestNode: startNode,
       });
 
       setIndoorUserLocation({
-        position: ACTIVE_INDOOR_NODES[startNode].position,
+        position: ACTIVE_INDOOR_NODES[normalizeIndoorKey(startNode)].position,
         nearestNode: startNode,
         floor: "G",
       });
 
+      const exitNode = getExitNode("G");
       const path = findPath(
-        startNode,
-        "entrance_G",
+        normalizeIndoorKey(startNode),
+        normalizeIndoorKey(exitNode),
         ACTIVE_INDOOR_EDGES,
         ACTIVE_INDOOR_NODES
       );
@@ -751,32 +1071,31 @@ function App() {
       setMapMode("INDOOR");
 
       pushState(STEPS.FLOOR_NAVIGATION);
-
       return;
     }
-    console.log("transportMode:", transportMode);
-    console.log("currentFloor:", currentFloor);
-    console.log("destination.floor:", activeIndoorDestination.floor);
 
     const targetFloor = normalizeFloor(activeIndoorDestination.floor);
 
     // Existing room navigation
-    const startNode =
-      transportMode === "lift"
+    const startNode = currentBuilding === "chavara"
+      ? (selectedVerticalPrefix ? `${selectedVerticalPrefix}_${targetFloor}` : (transportMode === "lift" ? `liftA_${targetFloor}` : `stairsA_${targetFloor}`))
+      : transportMode === "lift"
         ? `lift_${targetFloor}`
-        : getStairNode(targetFloor, currentFloor);
+        : getStairNodeForBuilding(targetFloor, currentFloor, currentBuilding);
 
     setCurrentFloor(targetFloor);
     console.log("Chosen start node:", startNode);
 
     setIndoorStart({
-      name: ACTIVE_INDOOR_NODES[startNode]?.label || startNode,
+      name: ACTIVE_INDOOR_NODES[normalizeIndoorKey(startNode)]?.label || startNode,
       nearestNode: startNode,
       floor: targetFloor,
     });
+
+    const endIndoorNode = activeIndoorDestination.indoorNode || activeIndoorDestination.id;
     const path = findPath(
-      startNode,
-      activeIndoorDestination.id,
+      normalizeIndoorKey(startNode),
+      normalizeIndoorKey(endIndoorNode),
       ACTIVE_INDOOR_EDGES,
       ACTIVE_INDOOR_NODES
     );
@@ -807,17 +1126,58 @@ function App() {
     setSelectedDepartment(null);
     if (window.history.state?.campusRouteX === "sheet") window.history.back();
   };
-
-  // GPS changes only move the live marker. They deliberately do not recreate
-  // the route or reset any selection/search state while the user is navigating.
-
+  const handleSelectCategory = (categoryId) => {
+    if (categoryId === "departments") {
+      setSheetData(bottomSheetData.departments);
+      setSelectedDepartment(null);
+      openBottomSheet("Departments", bottomSheetData.departments);
+    } else if (categoryId === "faculty") {
+      setSheetData(bottomSheetData.departments);
+      setSelectedDepartment(null);
+      openBottomSheet("Faculty", bottomSheetData.departments);
+    } else if (categoryId === "cafeteria") {
+      setSheetData(bottomSheetData.cafeteria);
+      setSelectedDepartment(null);
+      openBottomSheet("Cafeteria", bottomSheetData.cafeteria);
+    } else if (categoryId === "library") {
+      setSheetData(bottomSheetData.library);
+      setSelectedDepartment(null);
+      openBottomSheet("Library", bottomSheetData.library);
+    } else if (categoryId === "labs") {
+      setSheetData(bottomSheetData.labs || []);
+      setSelectedDepartment(null);
+      openBottomSheet("Labs", bottomSheetData.labs || []);
+    } else if (categoryId === "parking") {
+      setSheetData(bottomSheetData.parking || []);
+      setSelectedDepartment(null);
+      openBottomSheet("Parking", bottomSheetData.parking || []);
+    } else if (categoryId === "washrooms") {
+      setSheetData(bottomSheetData.washrooms || []);
+      setSelectedDepartment(null);
+      openBottomSheet("Washrooms", bottomSheetData.washrooms || []);
+    } else if (categoryId === "classrooms") {
+      setSheetData(bottomSheetData.classrooms || []);
+      setSelectedDepartment(null);
+      openBottomSheet("Classrooms", bottomSheetData.classrooms || []);
+    } else {
+      setSheetData(null);
+      setSelectedDepartment(null);
+      openBottomSheet("", null);
+    }
+  };
   const runManualIndoorRoute = (source, target) => {
     if (target.outdoor) {
+      // Cross-building: keep type "room" so startOutdoorNavigation uses the
+      // entrance-finding branch and sets selectedEntrance correctly.
+      const destEntranceNode = isChavaraBuilding(target.building) ? "chavara" : "g";
       const outdoorDestination = {
-        id: target.id,
+        id: target.indoorNode || target.id,
         name: target.name,
-        type: "location",
-        routeNode: target.routeNode || target.id,
+        type: "room",
+        routeNode: destEntranceNode,
+        floor: target.floor,
+        building: target.building,
+        indoorNode: target.indoorNode || target.id,
       };
       const srcFloor = source.floor || "G";
       setIndoorStart({ name: source.name, nearestNode: source.id, floor: srcFloor });
@@ -831,25 +1191,32 @@ function App() {
       setCurrentFloor(srcFloor);
       setMapMode("INDOOR");
 
-      // If on an upper/lower floor, ask lift/stairs first
-      if (["1", "2", "B1", "B2"].includes(srcFloor)) {
+      // If on a floor without an exit, ask lift/stairs first.
+      // Chavara has exits only on G; St. Mary's has exits on G, B1, B2.
+      const needsFloorChangeToExit = currentBuilding === "chavara"
+        ? srcFloor !== "G"
+        : ["1", "2"].includes(srcFloor);
+
+      if (needsFloorChangeToExit) {
         pushState(STEPS.FLOOR_CHOICE);
         return;
       }
 
-      // Ground floor — calculate indoor path to exit and jump straight to REACHED_EXIT
+      // Ground floor — calculate the indoor path to the available exit.
       const exitNode = getExitNode(srcFloor); // "entrance_G"
       if (source.id === exitNode) {
-        // Already at exit
+        // Already at the exit: immediately continue with the outdoor route.
         setIndoorRouteNodes([]);
         setIndoorRoute([]);
-        pushState(STEPS.REACHED_EXIT);
+        // Let the newly selected outdoor destination commit before creating
+        // its route.
+        window.requestAnimationFrame(() => switchToOutdoorNavigation());
         return;
       }
 
       const pathToExit = findPath(
-        source.id,
-        exitNode,
+        normalizeIndoorKey(source.id),
+        normalizeIndoorKey(exitNode),
         ACTIVE_INDOOR_EDGES,
         ACTIVE_INDOOR_NODES
       );
@@ -858,25 +1225,27 @@ function App() {
         setIndoorRouteNodes(pathToExit);
         setIndoorRoute(getPathCoordinates(pathToExit, ACTIVE_INDOOR_NODES));
       }
-      // Show the path on the map and immediately present the exit confirmation
-      pushState(STEPS.REACHED_EXIT);
+      // Follow the indoor path first. The single exit confirmation is shown
+      // only after this route reaches an available exit on this floor.
+      pushState(STEPS.FLOOR_NAVIGATION);
       return;
     }
 
-    const selectedTarget = { ...target, type: "room" };
-    setIndoorStart({ name: source.name, nearestNode: source.id, floor: source.floor });
+    // The selectable labels can carry stale or display-only floor metadata.
+    // Route decisions must come from the actual indoor graph nodes instead.
+    const sourceFloor = normalizeFloor(ACTIVE_INDOOR_NODES[source.id]?.floor || source.floor);
+    const targetFloor = normalizeFloor(ACTIVE_INDOOR_NODES[target.id]?.floor || target.floor);
+    const selectedTarget = { ...target, type: "room", floor: targetFloor };
+    setIndoorStart({ name: source.name, nearestNode: source.id, floor: sourceFloor });
     setIndoorDestination(selectedTarget);
     setIndoorUserLocation({
       position: ACTIVE_INDOOR_NODES[source.id].position,
       nearestNode: source.id,
-      floor: source.floor
+      floor: sourceFloor
     });
-    setCurrentFloor(source.floor);
+    setCurrentFloor(sourceFloor);
     setMapMode("INDOOR");
-
-    // Preserve the multi-floor flow: users choose stairs or lift before the
-    // destination-floor leg is drawn.
-    if (source.floor !== target.floor) {
+    if (sourceFloor !== targetFloor) {
       setIndoorRouteNodes([]);
       setIndoorRoute([]);
       pushState(STEPS.FLOOR_CHOICE);
@@ -884,27 +1253,37 @@ function App() {
     }
 
     const path = findPath(
-      source.id,
-      target.id,
+      normalizeIndoorKey(source.id),
+      normalizeIndoorKey(target.id),
       ACTIVE_INDOOR_EDGES,
       ACTIVE_INDOOR_NODES
     );
 
-    if (!path.length) return;
+    if (!path.length) {
+      alert("Could not find a route between these indoor locations. The map data might be disconnected.");
+      return;
+    }
 
     setIndoorRouteNodes(path);
     setIndoorRoute(getPathCoordinates(path, ACTIVE_INDOOR_NODES));
-    setNavStep(STEPS.FLOOR_NAVIGATION);
+    pushState(STEPS.FLOOR_NAVIGATION);
   };
 
   const markIndoorDestinationReached = (reachedNode) => {
-    setIndoorStart({ name: reachedNode.name, nearestNode: reachedNode.id, floor: reachedNode.floor });
-    setIndoorUserLocation({ position: ACTIVE_INDOOR_NODES[reachedNode.id].position, nearestNode: reachedNode.id, floor: reachedNode.floor });
+    const actualNode = ACTIVE_INDOOR_NODES[reachedNode.id];
+    if (!actualNode?.position) return;
+
+    // Completing an indoor route makes the room the user's next start point.
+    // This keeps every subsequent indoor search anchored at the destination.
+    const resolvedFloor = normalizeFloor(actualNode.floor || reachedNode.floor);
+    const resolvedName = actualNode.label || reachedNode.name || reachedNode.id;
+    setIndoorStart({ name: resolvedName, nearestNode: reachedNode.id, floor: resolvedFloor });
+    setIndoorUserLocation({ position: actualNode.position, nearestNode: reachedNode.id, floor: resolvedFloor });
     setIndoorDestination(null);
-    setDestination({ id: reachedNode.id, name: reachedNode.name, floor: reachedNode.floor, type: "room" });
+    setDestination({ id: reachedNode.id, name: resolvedName, floor: resolvedFloor, type: "room" });
     setIndoorRoute([]);
     setIndoorRouteNodes([]);
-    setCurrentFloor(reachedNode.floor);
+    setCurrentFloor(resolvedFloor);
     setShowNavigationCard(true);
     pushState(STEPS.COMPLETED);
   };
@@ -958,7 +1337,11 @@ function App() {
       console.log("Missing indoorStart or destination");
       return;
     }
-    if (["1", "2"].includes(currentFloor)) {
+    const needsFloorChangeToExit = currentBuilding === "chavara"
+      ? currentFloor !== "G"
+      : ["1", "2"].includes(currentFloor);
+
+    if (needsFloorChangeToExit) {
       pushState(STEPS.FLOOR_CHOICE);
       return;
     }
@@ -968,7 +1351,7 @@ function App() {
 
     if (indoorStart.nearestNode === exitNode) {
       console.log("Already at exit");
-      pushState(STEPS.REACHED_EXIT);
+      switchToOutdoorNavigation();
       return;
     }
 
@@ -997,14 +1380,13 @@ function App() {
   };
 
   const switchToOutdoorNavigation = () => {
+    const reachedExitNode = indoorRouteNodes[indoorRouteNodes.length - 1] || indoorStart?.nearestNode;
     setIndoorRoute([]);
     setIndoorRouteNodes([]);
     setMapMode("OUTDOOR");
 
-    // floorEntryMap maps floor names to the outdoor NODES key that
-    // corresponds to the building entrance on that floor.
-    const exitNode = floorEntryMap[currentFloor];
-    console.log("switchToOutdoorNavigation: exitNode =", exitNode, "destination =", destination);
+    const exitNode = getOutdoorExitNode(reachedExitNode) || floorEntryMap[currentFloor] || "g";
+    console.log("switchToOutdoorNavigation: exitNode =", exitNode, "reachedExitNode =", reachedExitNode, "destination =", destination);
 
     // Build the outdoor route. We pass the exitNode as the start so the
     // pathfinder begins at the building exit rather than the GPS position.
@@ -1016,7 +1398,9 @@ function App() {
   useEffect(() => {
     if (mapMode !== "INDOOR" || !indoorRouteNodes?.length || !indoorStart?.nearestNode) return;
 
-    const activeNodeId = indoorRouteNodes[0];
+    const activeNodeId = indoorRouteNodes[indoorRouteIndex];
+    if (!activeNodeId) return;
+
     const activeNode = ACTIVE_INDOOR_NODES[activeNodeId];
 
     if (!activeNode?.position) return;
@@ -1028,8 +1412,12 @@ function App() {
         nearestNode: activeNodeId,
         floor: activeNode.floor,
       });
+      // Automatically switch map floor view if user transitions to a node on another floor
+      if (currentFloor !== activeNode.floor && activeNode.floor !== "ALL") {
+        setCurrentFloor(activeNode.floor);
+      }
     }
-  }, [mapMode, indoorRouteNodes, indoorStart?.nearestNode, indoorUserLocation?.nearestNode]);
+  }, [mapMode, indoorRouteNodes, indoorRouteIndex, indoorStart?.nearestNode, indoorUserLocation?.nearestNode, currentFloor]);
 
   const areSamePosition = (a, b) => {
     if (!a || !b) return true;
@@ -1233,59 +1621,438 @@ function App() {
 
   return (
 
-    <main className="app-shell">
+    <main className="app-shell flex flex-col h-screen overflow-hidden bg-gray-100">
+      <LoadingScreen
+        isLoading={isAppLoading || dbLoading}
+        gpsStatus={gpsStatus}
+        onExplore={() => setIsAppLoading(false)}
+      />
 
-      {/* ── QR Simulator (dev/testing) ───────────────────────────────────── */}
-      <div className="qr-simulator-container">
-        <button
-          className="qr-simulator-toggle"
-          onClick={() => setQrSimOpen((o) => !o)}
-          title="QR location simulator"
-          aria-label="Toggle QR location simulator"
-        >
-          📍 {qrSimOpen ? "Close" : "Simulate QR"}
-        </button>
+      {/* ── Map Container Wrapper ────────────────────────────────────────────── */}
+      <div className="flex-1 relative overflow-hidden bg-white z-1300">
 
-        {qrSimOpen && (
-          <div className="qr-simulator-panel">
-            <h4>📱 Simulate QR Scan</h4>
-            <p className="panel-desc">
-              Tap a location to jump there instantly — same as scanning a physical QR code on campus.
-            </p>
-            <div className="qr-buttons">
-              {QR_LOCATIONS.map((qr) => (
+        {/* ── QR Simulator (dev/testing) ───────────────────────────────────── */}
+
+        <div className="qr-simulator-container">
+          <button
+            className="qr-simulator-toggle"
+            onClick={() => setQrSimOpen((o) => !o)}
+            title="QR location simulator"
+            aria-label="Toggle QR location simulator"
+          >
+            📍 {qrSimOpen ? "Close" : "Simulate QR"}
+          </button>
+
+          {qrSimOpen && (
+            <div className="qr-simulator-panel">
+              <h4>📱 Simulate QR Scan</h4>
+              <p className="panel-desc">
+                Tap a location to jump there instantly — same as scanning a physical QR code on campus.
+              </p>
+              <button className="qr-simulate-btn" style={{ marginBottom: "10px", background: "#fef08a", color: "#854d0e" }} onClick={() => {
+                gpsFallbackShown.current = false;
+                setQrSimOpen(false);
+                triggerIndoorFallback();
+              }}>
+                <span className="qr-icon">⚠️</span>
+                <span className="qr-btn-text"><strong>Test Poor GPS Fallback</strong></span>
+              </button>
+              <div className="qr-buttons">
+                {QR_LOCATIONS.map((qr) => (
+                  <button
+                    key={qr.id}
+                    className="qr-simulate-btn"
+                    onClick={() => {
+                      setQrSimOpen(false);
+                      handleQRScan(qr);
+                    }}
+                  >
+                    <span className="qr-icon">
+                      {qr.type === "INDOOR" ? "🏢" : "🗺️"}
+                    </span>
+                    <span className="qr-btn-text">
+                      <strong>{qr.name}</strong>
+                      <small>
+                        {qr.type === "INDOOR"
+                          ? `Indoor · Floor ${qr.floor}`
+                          : "Outdoor"
+                        } · node: {qr.startNode}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Floating Search & Chips Overlay ─────────────────────────────────── */}
+        <div className="absolute top-[env(safe-area-inset-top,16px)] left-0 right-0 flex flex-col z-1500 pointer-events-none mt-2">
+
+          {/* INDOOR MODE: always show YD Card */}
+          {mapMode === "INDOOR" && [STEPS.IDLE, STEPS.INDOOR_READY, STEPS.COMPLETED].includes(navStep) && (
+            <YDCard
+              mode="indoor"
+              currentFloor={currentFloor}
+              activeIndoorNodes={ACTIVE_INDOOR_NODES}
+              initialSource={indoorStart || indoorUserLocation}
+              initialDestination={indoorDestination}
+              onRoute={runManualIndoorRoute}
+              onOutdoorNavigation={() => {
+                if (destination && !isIndoorDestination(destination)) {
+                  startIndoorToOutdoorNavigation();
+                  return;
+                }
+                setIndoorRoute([]);
+                setIndoorRouteNodes([]);
+                setMapMode("OUTDOOR");
+                setNavStep(STEPS.IDLE);
+              }}
+              onSourceSelect={(item) => {
+                setAssumedIndoorMode(false);
+                const floor = item.floor || "G";
+                setCurrentFloor(floor);
+                const nodeId = item.id || item.routeNode;
+                const node = ACTIVE_INDOOR_NODES[nodeId];
+                if (node) {
+                  setIndoorUserLocation({ position: node.position, nearestNode: nodeId, floor });
+                  setIndoorStart({ name: item.name, nearestNode: nodeId, floor });
+                }
+              }}
+              hintMessage={assumedIndoorMode ? "Enter your current location" : "Tap here to set your start location"}
+            />
+          )}
+
+          {/* OUTDOOR MODE: single SearchBar (hasSearched=false) OR YD Card (hasSearched=true) */}
+          {mapMode !== "INDOOR" && (
+            <>
+              {hasSearched ? (
+                /* YD Card — shown after "Start Navigation" clicked */
+                <YDCard
+                  mode="outdoor"
+                  currentFloor={currentFloor}
+                  gpsLocationLabel="📍 Your Location"
+                  outdoorDestinationName={destination?.name || destination?.id || ""}
+                  onOutdoorSelect={(location) => {
+                    pushState(navStep);
+                    setShowNavigationCard(true);
+                    setSelectedLocation(location);
+                    setDestination(location);
+                    setIndoorDestination(location);
+                    setNavStep(STEPS.OUTDOOR_ROUTE);
+                    setRoute([]);
+                    setIndoorRoute([]);
+                    setIndoorRouteNodes([]);
+                    setIsOutdoorNavigating(false);
+                    setLastNearestNode(null);
+                    setHasSearched(false); // return to single bar until nav starts again
+                    setMapMode("OUTDOOR");
+                    previewOutdoorRoute(location);
+                  }}
+                />
+              ) : (
+                /* Single search bar — initial outdoor state */
+                <SearchBar
+                  currentFloor={currentFloor}
+                  isIndoorMode={false}
+                  onSelect={(location) => {
+                    pushState(navStep);
+                    setShowNavigationCard(true);
+                    if (
+                      mapMode === "INDOOR" &&
+                      indoorUserLocation &&
+                      currentFloor !== indoorUserLocation.floor
+                    ) {
+                      setCurrentFloor(indoorUserLocation.floor);
+                    }
+
+                    // Faculty selected from search
+                    if (location.type === "faculty") {
+                      const department = bottomSheetData.departments.find(
+                        dept => dept.name === location.department
+                      );
+                      const faculty = department?.faculties.find(
+                        f => f.name === location.name
+                      );
+                      if (!faculty) return;
+
+                      // Faculty without room number
+                      if (!faculty.room) {
+                        const chavaraLocation = {
+                          id: "chavara",
+                          name: location.department,
+                          type: "location",
+                          routeNode: "chavara",
+                          block: "Chavara Block",
+                          message: "This department is located on the 2nd floor of Chavara Block.",
+                        };
+                        setSelectedLocation(chavaraLocation);
+                        setDestination(chavaraLocation);
+                        if (mapMode !== "INDOOR") {
+                          setMapMode("OUTDOOR");
+                          setNavStep(STEPS.OUTDOOR_ROUTE);
+                        } else {
+                          setNavStep(STEPS.OUTDOOR_ROUTE);
+                        }
+                        return;
+                      }
+
+                      // Faculty with room number
+                      setSheetTitle("Faculty");
+                      openBottomSheet("Faculty", bottomSheetData.departments);
+                      setSheetOpen(true);
+                      setSelectedDepartment({ ...department, faculties: [faculty] });
+                      return;
+                    }
+
+                    setSelectedLocation(location);
+                    setDestination(location);
+                    setIndoorDestination(location);
+                    setNavStep(STEPS.OUTDOOR_ROUTE);
+                    setRoute([]);
+                    setIndoorRoute([]);
+                    setIndoorRouteNodes([]);
+                    setIsOutdoorNavigating(false);
+                    setLastNearestNode(null);
+
+                    const shouldUseIndoorFlow =
+                      mapMode === "INDOOR" || scannedQR?.type === "INDOOR";
+
+                    if (shouldUseIndoorFlow) {
+                      setMapMode("INDOOR");
+                      const sourceNode = indoorUserLocation?.nearestNode || indoorStart?.nearestNode;
+                      if (sourceNode) {
+                        const isDestChav = isChavaraBuilding(location.building) || location.routeNode === "chavara";
+                        const isCurrentChav = currentBuilding === "chavara";
+                        const isDifferentBuilding = isDestChav !== isCurrentChav;
+                        const sourceOpt = {
+                          id: sourceNode,
+                          name: indoorStart?.name || ACTIVE_INDOOR_NODES[sourceNode]?.label || sourceNode,
+                          floor: currentFloor
+                        };
+                        const targetOpt = {
+                          id: location.indoorNode || location.id,
+                          name: location.name,
+                          floor: location.floor,
+                          building: location.building,
+                          outdoor: isDifferentBuilding,
+                          routeNode: location.routeNode || location.id,
+                          // Preserve the indoor node for cross-building arrival
+                          indoorNode: location.indoorNode || location.id,
+                        };
+                        runManualIndoorRoute(sourceOpt, targetOpt);
+                      } else {
+                        setNavStep(STEPS.INDOOR_READY);
+                      }
+                    } else {
+                      setMapMode("OUTDOOR");
+                      previewOutdoorRoute(location);
+                    }
+                  }}
+                />
+              )}
+              {mapMode === "OUTDOOR" && navStep === STEPS.IDLE && !hasSearched && (
+                <SearchChips onSelectCategory={handleSelectCategory} />
+              )}
+            </>
+          )}
+
+        </div>
+
+
+
+
+
+
+        <Suspense fallback={
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 text-gray-500 font-semibold z-1300">
+            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            Loading Map View...
+          </div>
+        }>
+          <CampusMap
+            selectedLocation={selectedLocation}
+            currentLocation={locationToUse}
+            subscribeToLocation={subscribeToLocation}
+            route={route}
+            indoorRouteNodes={indoorRouteNodes}
+            indoorRouteIndex={indoorRouteIndex}
+            onNextIndoorStep={handleNextIndoorStep}
+            currentFloor={currentFloor}
+            mapMode={mapMode}
+            destination={destination}
+            mapCenter={mapCenter}
+            indoorUserLocation={indoorUserLocation}
+            setIndoorUserLocation={setIndoorUserLocation}
+            indoorStart={indoorStart}
+            setIndoorStart={setIndoorStart}
+            isOutdoorNavigating={isOutdoorNavigating}
+            useDebugLocation={USE_DEBUG_LOCATION}
+            activeFloorImages={ACTIVE_FLOOR_IMAGES}
+            activeIndoorNodes={ACTIVE_INDOOR_NODES}
+            isIndoorNavigating={navStep === STEPS.FLOOR_NAVIGATION}
+          />
+        </Suspense>
+
+        {/* ── Indoor Home Button — always visible in indoor mode ────────────────── */}
+        {mapMode === "INDOOR" && (
+          <button
+            id="indoor-home-btn"
+            aria-label="Back to outdoor map"
+            title="Back to outdoor map"
+            onClick={() => {
+              setIndoorRoute([]);
+              setIndoorRouteNodes([]);
+              setMapMode("OUTDOOR");
+              setNavStep(STEPS.IDLE);
+              setHasSearched(false);
+            }}
+            style={{
+              position: "absolute",
+              bottom: 28,
+              right: 18,
+              zIndex: 1500,
+              width: 52,
+              height: 52,
+              borderRadius: "50%",
+              border: "none",
+              cursor: "pointer",
+              background: "rgba(255,255,255,0.97)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.08)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 2,
+              transition: "transform 0.15s, box-shadow 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.08)";
+              e.currentTarget.style.boxShadow = "0 6px 24px rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.08)";
+            }}
+          >
+            <Home size={20} color="#2563eb" strokeWidth={2.2} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: "#2563eb", letterSpacing: 0.2 }}>
+              Map
+            </span>
+          </button>
+        )}
+
+        {/* ── Indoor routing — now handled by YDCard in the overlay above ─────── */}
+
+        {/* ── Building Detection Modal (on-load GPS polygon check) ─────────────── */}
+        {showBuildingModal && detectedBuilding && (
+          <>
+            <div className="modal-backdrop" onClick={() => setShowBuildingModal(false)} />
+            <section className="navigation-card building-modal">
+              <div className="building-modal-icon">🏛️</div>
+              <h3 className="building-modal-title">
+                Are you inside <strong>{getBuildingDisplayName(detectedBuilding)}</strong>?
+              </h3>
+              <p className="building-modal-sub">
+                We detected you may be near or inside {getBuildingDisplayName(detectedBuilding)}.
+              </p>
+              <div className="button-row">
                 <button
-                  key={qr.id}
-                  className="qr-simulate-btn"
+                  className="primary-action"
                   onClick={() => {
-                    setQrSimOpen(false);
-                    handleQRScan(qr);
+                    setShowBuildingModal(false);
+                    stopTracking();
+                    setCurrentBuilding(detectedBuilding);
+                    setAssumedIndoorMode(true);
+                    setIndoorStart(null);
+                    setIndoorUserLocation(null);
+                    setMapMode("INDOOR");
+                    setCurrentFloor("G");
+                    setManualIndoorMode(true);
+                    setSelectedVerticalPrefix(null);
+                    setRoute([]);
+                    setNavStep(STEPS.INDOOR_READY);
                   }}
                 >
-                  <span className="qr-icon">
-                    {qr.type === "INDOOR" ? "🏢" : "🗺️"}
-                  </span>
-                  <span className="qr-btn-text">
-                    <strong>{qr.name}</strong>
-                    <small>
-                      {qr.type === "INDOOR"
-                        ? `Indoor · Floor ${qr.floor}`
-                        : "Outdoor"
-                      } · node: {qr.startNode}
-                    </small>
-                  </span>
+                  Yes, I&rsquo;m inside
                 </button>
-              ))}
-            </div>
-          </div>
+                <button
+                  className="secondary-action"
+                  onClick={() => {
+                    setShowBuildingModal(false);
+                    // Snap user to nearest outdoor node to avoid placing them
+                    // inside the building footprint.
+                    const loc = USE_DEBUG_LOCATION ? USER_LOCATION : (location || null);
+                    if (loc) {
+                      const nearestNode = findNearestNode(loc, NODES);
+                      setOutdoorStartNode(nearestNode);
+                      setSnappedLocation(loc);
+                    }
+                    setMapMode("OUTDOOR");
+                    setNavStep(STEPS.IDLE);
+                  }}
+                >
+                  No, I&rsquo;m outside
+                </button>
+              </div>
+            </section>
+          </>
         )}
-      </div>
 
-      <div className="top-controls">
+        {navStep === STEPS.ASK_INSIDE_BUILDING && (
+          <NavigationCard>
+            <p>We could not establish a reliable GPS location. Are you currently <b>inside the building</b>?</p>
+            <div className="button-row">
+              <button className="primary-action" onClick={() => {
+                stopTracking();
+                const entryFloor = outdoorEntranceFloor[selectedEntrance] || "G";
+                const isChav = selectedEntrance === "chavara" || selectedEntrance === "p3";
+                setCurrentBuilding(isChav ? "chavara" : "stmarys");
 
-        {(mapMode !== "INDOOR" || navStep === STEPS.IDLE || navStep === STEPS.COMPLETED) && <SearchBar
+                setAssumedIndoorMode(true);
+                setIndoorStart(null);
+                setIndoorUserLocation(null);
 
-          onSelect={(location) => {
+                setMapMode("INDOOR");
+                setCurrentFloor(entryFloor);
+                setManualIndoorMode(true);
+                setSelectedVerticalPrefix(null);
+                setRoute([]);
+                setNavStep(STEPS.INDOOR_READY);
+              }}>Yes, open indoor map</button>
+              <button className="secondary-action" onClick={() => {
+                gpsFallbackShown.current = false;
+                setIsAppLoading(true);
+                startTracking();
+                setNavStep(STEPS.IDLE);
+              }}>No, retry GPS</button>
+            </div>
+          </NavigationCard>
+        )}
+
+
+
+        <BottomSheet
+
+          open={sheetOpen}
+
+          onClose={() => {
+            closeBottomSheet();
+          }}
+
+          title={sheetTitle}
+
+          data={sheetData}
+
+          selectedDepartment={selectedDepartment}
+
+          setSelectedDepartment={setSelectedDepartment}
+
+          onSelectCategory={handleSelectCategory}
+
+          onNavigate={(location) => {
             pushState(navStep);
             setShowNavigationCard(true);
             if (
@@ -1294,80 +2061,25 @@ function App() {
               currentFloor !== indoorUserLocation.floor
             ) {
               setCurrentFloor(indoorUserLocation.floor);
-            }
-
-
-            // Faculty selected from search
-            if (location.type === "faculty") {
-
-
-              const department =
-                bottomSheetData.departments.find(
-                  dept => dept.name === location.department
-                );
-
-
-              const faculty =
-                department?.faculties.find(
-                  f => f.name === location.name
-                );
-
-
-              if (!faculty) return;
-
-
-              // Faculty without room number
-              if (!faculty.room) {
-
-                const chavaraLocation = {
-                  id: "chavara",
-                  name: location.department,
-                  type: "location",
-                  routeNode: "chavara",
-                  block: "Chavara Block",
-                  message: "This department is located on the 2nd floor of Chavara Block.",
-                };
-
-                setSelectedLocation(chavaraLocation);
-                setDestination(chavaraLocation);
-
-                // Only switch to outdoor mode if user is not already indoors
-                if (mapMode !== "INDOOR") {
-                  setMapMode("OUTDOOR");
-                  setNavStep(STEPS.OUTDOOR_ROUTE);
-                } else {
-                  // Keep indoor context, just show the outdoor route card
-                  setNavStep(STEPS.OUTDOOR_ROUTE);
-                }
-
-                return;
-              }
-
-
-
-
-              // Faculty with room number
-              setSheetTitle("Faculty");
-              openBottomSheet("Faculty", bottomSheetData.departments);
-              setSheetOpen(true);
-
-              setSelectedDepartment({
-
-                ...department,
-
-                faculties: [faculty],
-
+              setIndoorStart({
+                name: ACTIVE_INDOOR_NODES[indoorUserLocation.nearestNode].label,
+                nearestNode: indoorUserLocation.nearestNode,
+                floor: indoorUserLocation.floor,
               });
-
-
-              return;
-
             }
 
 
 
-            // Existing search logic
+            setSelectedLocation(location);
+            setDestination(location);
+            setIndoorDestination(location);
+            setRoute([]);
+            setIndoorRoute([]);
+            setIndoorRouteNodes([]);
+            setIsOutdoorNavigating(false);
+            setLastNearestNode(null);
 
+            // Push an IDLE snapshot so back-button works correctly
             // setHistory([
             //   {
             //     navStep: STEPS.IDLE,
@@ -1375,701 +2087,433 @@ function App() {
             //     currentFloor: "G",
             //     route: [],
             //     indoorRoute: [],
+            //     indoorRouteNodes: [],
             //     transportMode: null,
             //     destination: null,
             //     selectedLocation: null,
+            //     indoorStart: null,
+            //     indoorDestination: null,
+            //     indoorUserLocation: null,
+            //     mapCenter: null,
+            //     isOutdoorNavigating: false,
+            //     lastNearestNode: null,
+            //     scannedQR: null,
+            //     outdoorStartNode: null,
             //   }
             // ]);
 
-
-
-            setSelectedLocation(location);
-
-            setDestination(location);
-
-            setIndoorDestination(location);
-
-            setNavStep(STEPS.OUTDOOR_ROUTE);
-            setRoute([]);
-
-            setIndoorRoute([]);
-
-            setIndoorRouteNodes([]);
-
-            setIsOutdoorNavigating(false);
-
-            setLastNearestNode(null);
-
-
-
             const shouldUseIndoorFlow =
-              mapMode === "INDOOR" ||
-              scannedQR?.type === "INDOOR";
-            console.log({
-              mapMode,
-              scannedQR,
-              shouldUseIndoorFlow,
-            });
+              mapMode === "INDOOR" || scannedQR?.type === "INDOOR";
 
             if (shouldUseIndoorFlow) {
-
               setMapMode("INDOOR");
-
               setNavStep(STEPS.INDOOR_READY);
-
             } else {
 
               setMapMode("OUTDOOR");
-              // Show the route preview immediately so bounds fit to user + destination
+
+
+              // ⭐ Decide outdoor destination building
+
+              if (location.building && location.building.toLowerCase().includes("stmarys")) {
+
+                setOutdoorTarget("stmarys_entrance");
+
+              }
+
+              else if (isChavaraBuilding(location.building)) {
+
+                setOutdoorTarget("chavara");
+
+              }
+
+              else if (location.building === "canteen") {
+
+                setOutdoorTarget("canteen");
+
+              }
+
+
               previewOutdoorRoute(location);
+              setNavStep(STEPS.OUTDOOR_ROUTE);
 
             }
 
           }}
 
-        />}
-
-
-        {mapMode === "OUTDOOR" && navStep === STEPS.IDLE && (
-
-          <SearchChips
-
-            onDepartmentClick={() => {
-              setSheetData(bottomSheetData.departments);
-              setSelectedDepartment(null);
-              openBottomSheet("Department", bottomSheetData.departments);
-            }}
-
-            onFacultyClick={() => {
-              setSheetData(bottomSheetData.departments);
-              setSelectedDepartment(null);
-              openBottomSheet("Faculty", bottomSheetData.departments);
-            }}
-
-
-
-            onLibraryClick={() => {
-              setSheetData(bottomSheetData.library);
-              openBottomSheet("Library", bottomSheetData.library);
-            }}
-
-            onCafeteriaClick={() => {
-              setSheetData(bottomSheetData.cafeteria);
-              openBottomSheet("Cafeteria", bottomSheetData.cafeteria);
-            }}
-
-            onBuildingsClick={() => {
-              setSheetData(bottomSheetData.buildings);
-              openBottomSheet("Buildings", bottomSheetData.buildings);
-            }}
-
-
-
-          // onLabsClick={() => {
-
-          //   setSheetData(bottomSheetData.labs);
-
-          //   setSheetTitle("Labs");
-
-          //   setSheetOpen(true);
-
-          // }}
-
-
-
-          />
-
-        )}
-
-      </div>
-
-
-
-
-
-
-      <CampusMap
-        selectedLocation={selectedLocation}
-        currentLocation={locationToUse}
-        subscribeToLocation={subscribeToLocation}
-        route={route}
-        indoorRouteNodes={indoorRouteNodes}
-        currentFloor={currentFloor}
-        mapMode={mapMode}
-        destination={destination}
-        mapCenter={mapCenter}
-        indoorUserLocation={indoorUserLocation}
-        setIndoorUserLocation={setIndoorUserLocation}
-        indoorStart={indoorStart}
-        setIndoorStart={setIndoorStart}
-        isOutdoorNavigating={isOutdoorNavigating}
-        useDebugLocation={USE_DEBUG_LOCATION}
-        activeFloorImages={ACTIVE_FLOOR_IMAGES}
-        activeIndoorNodes={ACTIVE_INDOOR_NODES}
-      />
-
-      {mapMode === "INDOOR" && [STEPS.IDLE, STEPS.INDOOR_READY, STEPS.COMPLETED].includes(navStep) && (
-        <IndoorRoutingCard
-          onRoute={runManualIndoorRoute}
-          onOutdoorNavigation={() => {
-            if (destination && !isIndoorDestination(destination)) {
-              startIndoorToOutdoorNavigation();
-              return;
-            }
-            setIndoorRoute([]);
-            setIndoorRouteNodes([]);
-            setMapMode("OUTDOOR");
-            setNavStep(STEPS.IDLE);
-          }}
-          initialSource={indoorStart || indoorUserLocation}
-          initialDestination={indoorDestination}
         />
-      )}
 
-      {navStep === STEPS.ASK_INSIDE_BUILDING && (
-        <NavigationCard>
-          <p>We could not establish a reliable GPS location. Are you currently inside the building?</p>
-          <div className="button-row">
-            <button className="primary-action" onClick={() => {
-              stopTracking();
-              const entryFloor = outdoorEntranceFloor[selectedEntrance] || "G";
-              const entranceNode = indoorEntranceByFloor[entryFloor];
-              const entrance = ACTIVE_INDOOR_NODES[entranceNode];
-              if (entrance) {
-                setIndoorStart({
-                  name: entrance.label || `${entryFloor} entrance`,
-                  nearestNode: entranceNode,
-                  floor: entryFloor,
-                });
-                setIndoorUserLocation({
-                  position: entrance.position,
-                  nearestNode: entranceNode,
-                  floor: entryFloor,
-                });
-              }
-              setMapMode("INDOOR");
-              setCurrentFloor(entryFloor);
-              setManualIndoorMode(true);
-              setRoute([]);
-              if (destination && isIndoorDestination(destination)) {
-                continueFromOutdoorEntrance();
-              } else {
-                setNavStep(STEPS.INDOOR_READY);
-              }
-            }}>Yes, open indoor map</button>
-            <button className="secondary-action" onClick={() => {
-              gpsFallbackShown.current = false;
-              startTracking();
-              setNavStep(STEPS.IDLE);
-            }}>No, retry GPS</button>
-          </div>
-        </NavigationCard>
-      )}
 
 
 
-      <BottomSheet
 
-        open={sheetOpen}
+        <FloorSelector
+          currentFloor={currentFloor}
+          setCurrentFloor={changeFloor}
+          mapMode={mapMode}
+          destination={destination}
+          activeFloorImages={ACTIVE_FLOOR_IMAGES}
+        />
 
-        onClose={() => {
-          closeBottomSheet();
-        }}
 
-        title={sheetTitle}
 
-        data={sheetData}
-
-        selectedDepartment={selectedDepartment}
-
-        setSelectedDepartment={setSelectedDepartment}
-
-        onNavigate={(location) => {
-          pushState(navStep);
-          setShowNavigationCard(true);
-          if (
-            mapMode === "INDOOR" &&
-            indoorUserLocation &&
-            currentFloor !== indoorUserLocation.floor
-          ) {
-            setCurrentFloor(indoorUserLocation.floor);
-            setIndoorStart({
-              name: ACTIVE_INDOOR_NODES[indoorUserLocation.nearestNode].label,
-              nearestNode: indoorUserLocation.nearestNode,
-              floor: indoorUserLocation.floor,
-            });
-          }
-
-
-
-          setSelectedLocation(location);
-          setDestination(location);
-          setIndoorDestination(location);
-          setRoute([]);
-          setIndoorRoute([]);
-          setIndoorRouteNodes([]);
-          setIsOutdoorNavigating(false);
-          setLastNearestNode(null);
-
-          // Push an IDLE snapshot so back-button works correctly
-          // setHistory([
-          //   {
-          //     navStep: STEPS.IDLE,
-          //     mapMode: "OUTDOOR",
-          //     currentFloor: "G",
-          //     route: [],
-          //     indoorRoute: [],
-          //     indoorRouteNodes: [],
-          //     transportMode: null,
-          //     destination: null,
-          //     selectedLocation: null,
-          //     indoorStart: null,
-          //     indoorDestination: null,
-          //     indoorUserLocation: null,
-          //     mapCenter: null,
-          //     isOutdoorNavigating: false,
-          //     lastNearestNode: null,
-          //     scannedQR: null,
-          //     outdoorStartNode: null,
-          //   }
-          // ]);
-
-          const shouldUseIndoorFlow =
-            mapMode === "INDOOR" || scannedQR?.type === "INDOOR";
-
-          if (shouldUseIndoorFlow) {
-            setMapMode("INDOOR");
-            setNavStep(STEPS.INDOOR_READY);
-          } else {
-
-            setMapMode("OUTDOOR");
-
-
-            // ⭐ Decide outdoor destination building
-
-            if (location.building === "stmarys") {
-
-              setOutdoorTarget("stmarys_entrance");
-
-            }
-
-            else if (location.building === "chavara") {
-
-              setOutdoorTarget("chavara");
-
-            }
-
-            else if (location.building === "canteen") {
-
-              setOutdoorTarget("canteen");
-
-            }
-
-
-            previewOutdoorRoute(location);
-            setNavStep(STEPS.OUTDOOR_ROUTE);
-
-          }
-
-        }}
-
-      />
-
-
-
-
-
-      <FloorSelector
-        currentFloor={currentFloor}
-        setCurrentFloor={changeFloor}
-        mapMode={mapMode}
-        destination={destination}
-        activeFloorImages={ACTIVE_FLOOR_IMAGES}
-      />
-
-
-
-      {
-        navStep === STEPS.OUTDOOR_ROUTE &&
-        !isOutdoorNavigating && (
-          <NavigationCard>
-            <p>
-              Destination: <strong>{destination?.name || destination?.id || "Selected Location"}</strong>
-            </p>
-            <div className="button-row">
-              <button
-                className="primary-action"
-                onClick={() => {
-
-                  console.log("Destination before start:", destination);
-
-                  startOutdoorNavigation();
-                }}
-              >
-                Start navigation
-              </button>
-
-              {!isInsideCampus(location || snappedLocation) && (
-                <button
-                  className="secondary-action"
-                  onClick={() => {
-                    const destPos = destination?.position || (destination?.routeNode ? NODES[destination.routeNode] : null) || (destination?.id ? NODES[destination.id] : null);
-                    if (destPos) {
-                      openGoogleMapsNavigation(destPos);
-                    } else {
-                      // Fallback to entrance
-                      openGoogleMapsNavigation([CAMPUS_ENTRANCE.lat, CAMPUS_ENTRANCE.lng]);
-                    }
-                  }}
-                  title="Navigate using Google Maps App"
-                >
-                  External GPS
-                </button>
-              )}
-            </div>
-          </NavigationCard>
-        )
-      }
-      {
-        showNavigationCard &&
-        navStep === STEPS.AT_BUILDING &&
-        isIndoorDestination(destination) &&
-        (
-          <NavigationCard>
-
-            <p>
-              Have you arrived at <strong>the selected entrance</strong>?
-            </p>
-
-            <div className="button-row">
-
-              <button
-                className="primary-action"
-                onClick={() => {
-
-                  continueFromOutdoorEntrance();
-
-                }}
-              >
-                Yes, continue indoors
-              </button>
-
-
-              <button
-                className="secondary-action"
-                onClick={() =>
-                  setNavStep(STEPS.OUTDOOR_ROUTE)
-                }
-              >
-                Not yet
-              </button>
-
-            </div>
-
-          </NavigationCard>
-        )
-      }
-      {
-        showNavigationCard &&
-        navStep === STEPS.COMPLETED &&
-        destination && (
-
-          <NavigationCard className="arrival-card">
-
-            <div className="arrival-header">
-
-              <div className="arrival-icon">
-                🎉
-              </div>
-
-              <div>
-                <h3>Destination Reached</h3>
-
-                <p>
-                  {destination?.name || destination?.id || "Location"}
-                </p>
-              </div>
-
-            </div>
-
-
-            <p className="feedback-text">
-              How was your navigation experience?
-            </p>
-
-
-            <div className="arrival-actions">
-
-              <button
-                className="primary-action"
-                onClick={finishNavigation}
-              >
-                Finish
-              </button>
-
-
-              <button
-                className="feedback-btn"
-                onClick={openFeedbackForm}
-              >
-                📝 Feedback
-              </button>
-
-            </div>
-
-          </NavigationCard>
-
-        )
-      }
-
-
-      {
-
-        navStep === STEPS.FLOOR_CHOICE && (
-
-          <NavigationCard>
-
-            <p>
-              {(indoorDestination?.floor || destination?.floor)
-                ? (
-                  <>
-                    How do you want to go to floor{" "}
-                    <strong>{indoorDestination?.floor || destination?.floor}</strong>?
-                  </>
-                )
-                : (
-                  <>
-                    You are on floor <strong>{currentFloor}</strong>. How do you want to reach the <strong>Ground Floor</strong> exit?
-                  </>
-                )}
-            </p>
-
-            <div className="button-row">
-
-              <button
-                className="primary-action"
-                onClick={() => startVerticalNavigation("stairs")}
-              >
-                🪜 Stairs
-              </button>
-
-              <button
-                className="primary-action"
-                onClick={() => startVerticalNavigation("lift")}
-              >
-                Lift
-              </button>
-
-            </div>
-
-          </NavigationCard>
-
-        )
-
-      }
-
-
-
-      {
-
-        navStep === STEPS.GO_TO_FLOOR && (
-
-          <NavigationCard>
-
-            <p>
-              {(indoorDestination?.floor || destination?.floor)
-                ? <>Proceed to the <strong>{transportMode}</strong> and go to floor <strong>{indoorDestination?.floor || destination?.floor}</strong>.</>
-                : <>Proceed to the <strong>{transportMode}</strong> and go down to the <strong>Ground Floor</strong> exit.</>
-              }
-            </p>
-
-            <button className="primary-action" onClick={continueOnDestinationFloor}>
-              {(indoorDestination?.floor || destination?.floor)
-                ? `Reached ${indoorDestination?.floor || destination?.floor}`
-                : "Reached Ground Floor"
-              }
-            </button>
-
-          </NavigationCard>
-
-        )
-
-      }
-
-      {mapMode === "INDOOR" && navStep === STEPS.REACHED_EXIT && (
-        <NavigationCard>
-          <p>Have you arrived at the building exit?</p>
-          <div className="button-row">
-            <button
-              className="primary-action"
-              onClick={() => {
-                switchToOutdoorNavigation();
-              }}
-            >
-              Yes, continue outdoor navigation
-            </button>
-            <button
-              className="secondary-action"
-              onClick={() => pushState(STEPS.FLOOR_NAVIGATION)}
-            >
-              Not yet
-            </button>
-          </div>
-        </NavigationCard>
-      )}
-
-
-
-      {mapMode === "INDOOR" && navStep === STEPS.FLOOR_NAVIGATION &&
-        indoorArrivalReady &&
-        isUserFloor && (
-          currentFloor === indoorUserLocation?.floor && (() => {
-            const isOutdoorDest =
-              destination?.type !== "room" && destination?.type !== "faculty";
-
-            return (
-              <NavigationCard>
-                <p>
-                  {isOutdoorDest
-                    ? <>You should now be near the <strong>building exit</strong>. Please confirm that you have arrived.</>
-                    : <>You should now be near <strong>{destination?.name || destination?.id}</strong>. Please confirm that you have arrived.</>
-                  }
-                </p>
-
+        {
+          navStep === STEPS.OUTDOOR_ROUTE &&
+          !isOutdoorNavigating && (
+            <NavigationCard>
+              <p>
+                Destination: <strong>{destination?.name || destination?.id || "Selected Location"}</strong>
+              </p>
+              <div className="button-row">
                 <button
                   className="primary-action"
                   onClick={() => {
-                    if (isOutdoorDest) {
-                      setIndoorRoute([]);
-                      setIndoorRouteNodes([]);
-                      // User reached the exit — hand off to outdoor navigation
-                      pushState(STEPS.REACHED_EXIT);
-                    } else {
-                      markIndoorDestinationReached({
-                        id: destination.id,
-                        name: destination.name || destination.id,
-                        floor: destination.floor,
-                      });
-                    }
-                    // setTimeout(() => {
-                    //   setShowNavigationCard(true);
-                    // }, 3000);
+
+                    console.log("Destination before start:", destination);
+
+                    startOutdoorNavigation();
                   }}
                 >
-                  {isOutdoorDest ? "I have reached the exit" : "I reached"}
+                  Start navigation
                 </button>
-              </NavigationCard>
-            );
-          })()
-        )}
-      {
-        navStep === STEPS.OUTDOOR_NAVIGATING &&
-        !isIndoorDestination(destination) && (
-          <NavigationCard>
-            <button
-              className="primary-action"
-              onClick={() => {
-                setShowNavigationCard(true);
-                pushState(STEPS.OUTDOOR_REACHED);
-              }}
-            >
-              I have arrived
-            </button>
-          </NavigationCard>
-        )
-      }
-      {
-        showNavigationCard &&
-        navStep === STEPS.AT_BUILDING &&
-        !isIndoorDestination(destination) && (
-          <NavigationCard>
-            <p>
-              Follow the highlighted route to{" "}
-              <strong>{destination?.name || destination?.id}</strong>.
-            </p>
 
-            <button
-              className="primary-action"
-              onClick={() => {
-                pushState(STEPS.OUTDOOR_REACHED);
-              }}
-            >
-              I have arrived
-            </button>
-          </NavigationCard>
-        )
-      }
-      {
-        showNavigationCard &&
-        navStep === STEPS.OUTDOOR_REACHED &&
-        !isIndoorDestination(destination) && (
+                {!isInsideCampus(location || snappedLocation) && (
+                  <button
+                    className="secondary-action"
+                    onClick={() => {
+                      const destPos = destination?.position || (destination?.routeNode ? NODES[destination.routeNode] : null) || (destination?.id ? NODES[destination.id] : null);
+                      if (destPos) {
+                        openGoogleMapsNavigation(destPos);
+                      } else {
+                        // Fallback to entrance
+                        openGoogleMapsNavigation([CAMPUS_ENTRANCE.lat, CAMPUS_ENTRANCE.lng]);
+                      }
+                    }}
+                    title="Navigate using Google Maps App"
+                  >
+                    External GPS
+                  </button>
+                )}
+              </div>
+            </NavigationCard>
+          )
+        }
+        {
+          showNavigationCard &&
+          navStep === STEPS.AT_BUILDING &&
+          isIndoorDestination(destination) &&
+          (
+            <NavigationCard>
+              <p>
+                Have you reached the <strong>{outdoorEntranceFloor[selectedEntrance] || "Ground"} floor entrance</strong> of <strong>{isChavaraBuilding(destination?.building) ? "Chavara Block" : "St Mary's Block"}</strong>?
+              </p>
+              <div className="button-row">
+                <button
+                  className="primary-action"
+                  onClick={() => {
+                    continueFromOutdoorEntrance();
+                  }}
+                >
+                  I reached
+                </button>
+                <button
+                  className="secondary-action"
+                  onClick={() =>
+                    setNavStep(STEPS.OUTDOOR_ROUTE)
+                  }
+                >
+                  Not yet
+                </button>
+              </div>
+            </NavigationCard>
+          )
+        }
+        {
+          showNavigationCard &&
+          navStep === STEPS.COMPLETED &&
+          destination && (
 
-          <NavigationCard className="arrival-card">
+            <NavigationCard className="arrival-card">
 
-            <div className="arrival-header">
+              <div className="arrival-header">
 
-              <div className="arrival-icon">
-                🎉
+                <div className="arrival-icon">
+                  🎉
+                </div>
+
+                <div>
+                  <h3>Destination Reached</h3>
+
+                  <p>
+                    {destination?.name || destination?.id || "Location"}
+                  </p>
+                </div>
+
               </div>
 
-              <div>
-                <h3>Destination Reached</h3>
-                <p>{destination?.name || destination?.id}</p>
+
+              <p className="feedback-text">
+                How was your navigation experience?
+              </p>
+
+
+              <div className="arrival-actions">
+
+                <button
+                  className="primary-action"
+                  onClick={finishNavigation}
+                >
+                  Finish
+                </button>
+
+
+                <button
+                  className="feedback-btn"
+                  onClick={openFeedbackForm}
+                >
+                  📝 Feedback
+                </button>
+
               </div>
 
-            </div>
+            </NavigationCard>
 
-            <p className="feedback-text">
-              How was your navigation experience?
-            </p>
+          )
+        }
 
-            <div className="arrival-actions">
+
+        {
+
+          navStep === STEPS.FLOOR_CHOICE && (
+
+            <NavigationCard>
+
+              <p>
+                {(indoorDestination?.floor || destination?.floor)
+                  ? (
+                    <>
+                      How do you want to go to floor{" "}
+                      <strong>{indoorDestination?.floor || destination?.floor}</strong>?
+                    </>
+                  )
+                  : (
+                    <>
+                      You are on floor <strong>{currentFloor}</strong>. How do you want to reach the <strong>Ground Floor</strong> exit?
+                    </>
+                  )}
+              </p>
+
+              <div className="button-row">
+
+                <button
+                  className="primary-action"
+                  onClick={() => startVerticalNavigation("stairs")}
+                >
+                  🪜 Stairs
+                </button>
+
+                <button
+                  className="primary-action"
+                  onClick={() => startVerticalNavigation("lift")}
+                >
+                  Lift
+                </button>
+
+              </div>
+
+            </NavigationCard>
+
+          )
+
+        }
+
+
+
+        {
+
+          navStep === STEPS.GO_TO_FLOOR && (
+
+            <NavigationCard>
+
+              <p>
+                {(indoorDestination?.floor || destination?.floor)
+                  ? <>Proceed to the <strong>{transportMode}</strong> and go to floor <strong>{indoorDestination?.floor || destination?.floor}</strong>.</>
+                  : <>Proceed to the <strong>{transportMode}</strong> and go down to the <strong>Ground Floor</strong> exit.</>
+                }
+              </p>
+
+              <button className="primary-action" onClick={continueOnDestinationFloor}>
+                {(indoorDestination?.floor || destination?.floor)
+                  ? `Reached ${indoorDestination?.floor || destination?.floor}`
+                  : "Reached Ground Floor"
+                }
+              </button>
+
+            </NavigationCard>
+
+          )
+
+        }
+
+        {mapMode === "INDOOR" && navStep === STEPS.FLOOR_NAVIGATION &&
+          indoorArrivalReady &&
+          isUserFloor && (
+            currentFloor === indoorUserLocation?.floor && (() => {
+              const activeIndoorTarget = indoorDestination || destination;
+              const destBuildingNormalized = isChavaraBuilding(activeIndoorTarget?.building || activeIndoorTarget?.routeNode) ? "chavara" : "stmarys";
+              const isDifferentBuilding = currentBuilding !== destBuildingNormalized;
+              const isOutdoorDest = !isIndoorDestination(activeIndoorTarget) || isDifferentBuilding;
+              const reachedNodeId = indoorRouteNodes.at(-1) || activeIndoorTarget?.indoorNode || activeIndoorTarget?.id;
+
+              return (
+                <NavigationCard>
+                  <p>
+                    {isOutdoorDest
+                      ? <>You should now be near the <strong>building exit</strong>. Please confirm that you have arrived.</>
+                      : <>You should now be near <strong>{activeIndoorTarget?.name || activeIndoorTarget?.id}</strong>. Please confirm that you have arrived.</>
+                    }
+                  </p>
+
+                  <button
+                    className="primary-action"
+                    onClick={() => {
+                      if (isOutdoorDest) {
+                        setIndoorRoute([]);
+                        setIndoorRouteNodes([]);
+                        // User reached the available exit — hand off directly
+                        // to outdoor navigation. This keeps one confirmation
+                        // card in the indoor-to-outdoor flow.
+                        switchToOutdoorNavigation();
+                      } else {
+                        markIndoorDestinationReached({
+                          id: reachedNodeId,
+                          name: activeIndoorTarget?.name || reachedNodeId,
+                          floor: activeIndoorTarget?.floor,
+                        });
+                      }
+                      // setTimeout(() => {
+                      //   setShowNavigationCard(true);
+                      // }, 3000);
+                    }}
+                  >
+                    {isOutdoorDest ? "I have reached the exit" : "I reached"}
+                  </button>
+                </NavigationCard>
+              );
+            })()
+          )}
+
+        {
+          showNavigationCard &&
+          navStep === STEPS.AT_BUILDING &&
+          !isIndoorDestination(destination) && (
+            <NavigationCard>
+              <p>
+                Follow the highlighted route to{" "}
+                <strong>{destination?.name || destination?.id}</strong>.
+              </p>
 
               <button
                 className="primary-action"
-                onClick={finishNavigation}
+                onClick={() => {
+                  pushState(STEPS.OUTDOOR_ARRIVED);
+                }}
               >
-                ✅ Finish
+                I reached
               </button>
-
+            </NavigationCard>
+          )
+        }
+        {
+          showNavigationCard &&
+          navStep === STEPS.OUTDOOR_ARRIVED &&
+          !isIndoorDestination(destination) && (
+            <NavigationCard>
+              <p>
+                You have arrived near <strong>{destination?.name || destination?.id}</strong>.
+              </p>
               <button
-                className="feedback-btn"
-                onClick={openFeedbackForm}
+                className="primary-action"
+                onClick={() => {
+                  pushState(STEPS.OUTDOOR_REACHED);
+                }}
               >
-                📝 Feedback
+                I reached
               </button>
+            </NavigationCard>
+          )
+        }
+        {
+          showNavigationCard &&
+          navStep === STEPS.OUTDOOR_REACHED &&
+          !isIndoorDestination(destination) && (
 
-            </div>
+            <NavigationCard className="arrival-card">
 
-          </NavigationCard>
+              <div className="arrival-header">
 
-        )
-      }
+                <div className="arrival-icon">
+                  🎉
+                </div>
 
-      {false && mapMode === "INDOOR" && navStep === STEPS.INDOOR_READY && (
-        <NavigationCard>
-          <p>
-            {destination?.type === "room" || destination?.type === "faculty"
-              ? <>Navigate to <strong>{destination?.name || destination?.id}</strong><br /><small>Indoor route</small></>
-              : <>Navigate to <strong>{destination?.name || destination?.id}</strong><br /><small>Outdoor destination – you are inside the building</small></>
-            }
-          </p>
-          <button
-            className="primary-action"
-            onClick={() => {
-              if (destination?.type === "room" || destination?.type === "faculty") {
-                startIndoorNavigation();
-              } else {
-                startIndoorToOutdoorNavigation();
+                <div>
+                  <h3>Destination Reached</h3>
+                  <p>{destination?.name || destination?.id}</p>
+                </div>
+
+              </div>
+
+              <p className="feedback-text">
+                How was your navigation experience?
+              </p>
+
+              <div className="arrival-actions">
+
+                <button
+                  className="primary-action"
+                  onClick={finishNavigation}
+                >
+                  ✅ Finish
+                </button>
+
+                <button
+                  className="feedback-btn"
+                  onClick={openFeedbackForm}
+                >
+                  📝 Feedback
+                </button>
+
+              </div>
+
+            </NavigationCard>
+
+          )
+        }
+
+        {false && mapMode === "INDOOR" && navStep === STEPS.INDOOR_READY && (
+          <NavigationCard>
+            <p>
+              {destination?.type === "room" || destination?.type === "faculty"
+                ? <>Navigate to <strong>{destination?.name || destination?.id}</strong><br /><small>Indoor route</small></>
+                : <>Navigate to <strong>{destination?.name || destination?.id}</strong><br /><small>Outdoor destination – you are inside the building</small></>
               }
-            }}
-          >
-            Start Navigation
-          </button>
-        </NavigationCard>
-      )}
+            </p>
+            <button
+              className="primary-action"
+              onClick={() => {
+                if (destination?.type === "room" || destination?.type === "faculty") {
+                  startIndoorNavigation();
+                } else {
+                  startIndoorToOutdoorNavigation();
+                }
+              }}
+            >
+              Start Navigation
+            </button>
+          </NavigationCard>
+        )}
 
-
+      </div>
 
     </main >
 
@@ -2127,7 +2571,7 @@ function isIndoorDestination(destination) {
     destination.routeNode === "st-marys-block";
 
   const isChavara =
-    destination.building === "chavara" ||
+    isChavaraBuilding(destination.building) ||
     destination.routeNode === "chavara";
 
   if (isStMarys || isChavara) return true;
@@ -2136,6 +2580,25 @@ function isIndoorDestination(destination) {
   return f.startsWith("B2") || f.startsWith("B1") || f.startsWith("G") || /^[1-6]/.test(f);
 }
 
+function getStairNodeForBuilding(currentFloor, destinationFloor, building) {
+  if (building === "chavara") {
+    return `ch_stairsA_${currentFloor}`;
+  }
+  return getStairNode(currentFloor, destinationFloor);
+}
 
+// Admin lazy imports to prevent map bundle bloat
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 
-export default App;
+export default function AppRouter() {
+  return (
+    <Suspense fallback={<LoadingScreen isLoading={true} />}>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin/dashboard/*" element={<AdminDashboard />} />
+      </Routes>
+    </Suspense>
+  );
+}

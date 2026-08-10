@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.0",
+    "@supabase/supabase-js": "^2.110.8",
     "leaflet": "^1.9.4",
     "leaflet-polylinedecorator": "^1.6.0",
     "leaflet-rotate": "^0.2.8",

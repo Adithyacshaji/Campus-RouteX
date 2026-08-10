@@ -1,11 +1,12 @@
 import { NODES } from "../data/graph";
 import { calculateHaversineDistance } from "./haversine";
 
-export function findNearestNode(location) {
+export function findNearestNode(location, customNodes = null) {
   let nearest = null;
   let minDistance = Infinity;
+  const nodesToSearch = customNodes || NODES;
 
-  Object.entries(NODES).forEach(([id, node]) => {
+  Object.entries(nodesToSearch).forEach(([id, node]) => {
     const d = calculateHaversineDistance(
       location.lat,
       location.lng,

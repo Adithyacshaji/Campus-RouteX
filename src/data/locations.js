@@ -1,5 +1,5 @@
 export const CAMPUS_BOUNDS = [
-  [10.353234,76.210874], // South-West
+  [10.353234, 76.210874], // South-West
   [10.361560, 76.214672], // North-East
 ];
 
@@ -12,14 +12,20 @@ export const LOCATIONS = [
   },
   {
     id: "chavara",
-    name: "Chavara",
-    position: [10.355879, 76.212411],
-    // type: "building",
+    name: "Chavara Entrance 1",
+    position: [10.356112, 76.212578],
+    routeNode: "chavara",
+  },
+  {
+    id: "p3",
+    name: "Chavara Entrance 2",
+    position: [10.356367, 76.212575],
+    routeNode: "p3",
   },
   {
     id: "cafe",
     name: "Cafe",
-    position: [10.355757,76.212182],
+    position: [10.355643, 76.212090],
     // type: "building",
   },
   {
@@ -37,7 +43,7 @@ export const LOCATIONS = [
   {
     id: "st-marys-block",
     name: "St Mary's Block",
-    position: [10.357903, 76.212941],
+    position: [10.357870, 76.212652],
     // type: "building",
     routeNode: "g",
   },
@@ -61,14 +67,18 @@ export const LOCATIONS = [
   {
     id: "joseph",
     name: "St Joseph's Block",
-    position:[10.358837, 76.213000],
+    position: [10.358837, 76.213000],
     // type: "building",
   },
   {
     id: "amphi",
     name: "Amphitheater",
-    position:[10.358006, 76.213215],
+    position: [10.358006, 76.213215],
     // type: "building",
   },
-
+  {
+    id: "cafe1",
+    name: "Christ Cafe",
+    position: [10.357574, 76.213379],
+  },
 ];
