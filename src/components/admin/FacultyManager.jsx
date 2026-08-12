@@ -131,8 +131,8 @@ export default function FacultyManager() {
 
         {error && <div className="p-4 m-4 rounded-xl text-rose-600 bg-rose-50 border border-rose-100/50 text-sm font-medium">{error}</div>}
 
-        <div className="overflow-y-auto flex-1 custom-scrollbar">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-y-auto overflow-x-auto flex-1 custom-scrollbar">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
               <tr className="text-slate-500 text-xs uppercase tracking-widest">
                 <th className="p-5 font-bold">Name & Title</th>
@@ -193,8 +193,8 @@ export default function FacultyManager() {
       </div>
 
       {isFormOpen && (
-        <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm z-20 flex items-center justify-end p-4 animate-in fade-in">
-          <div className="bg-white w-full max-w-md h-full rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right-8 duration-300">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-end md:p-4 animate-in fade-in">
+          <div className="bg-white w-full max-w-md h-full md:rounded-3xl rounded-none shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right-8 duration-300">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white z-10 shadow-sm">
               <h2 className="text-xl font-extrabold text-slate-800">
                 {editingId ? "Edit Faculty" : "New Faculty"}

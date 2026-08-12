@@ -75,6 +75,9 @@ export default function useCurrentLocation() {
     setGpsStatus("pending");
     hasFixRef.current = false;
     poorCountRef.current = 0;
+    appLocationPublishedRef.current = false;
+    setLocation(null);
+    smoothedRef.current = null;
 
     clearGpsTimeout();
     timeoutRef.current = setTimeout(() => {

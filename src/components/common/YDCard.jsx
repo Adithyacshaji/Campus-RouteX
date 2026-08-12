@@ -31,8 +31,11 @@
  */
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { MapPin, Navigation2, DoorOpen, User, Building2, Search, X, ArrowUpRight } from "lucide-react";
 import { useDatabase } from "../../context/DatabaseContext";
+import ImageModal from "./ImageModal";
+import { normalizeName, FACULTY_PHOTOS } from "./BottomSheet";
 import "./YDCard.css";
 
 // ─── Alias dictionary (mirrors SearchBar.jsx) ─────────────────────────────────
@@ -185,13 +188,13 @@ function ItemIcon({ item }) {
 function itemMeta(item) {
   if (item.type === "faculty") {
     const bName = (item.building || "").toLowerCase().includes("chavara")
-      ? "Chavara Block"
+      ? "St Chavara Block"
       : "St Mary's Block";
     return `${item.designation || "Faculty"} · ${item.department || ""} (${bName})`;
   }
   if (item.type === "room") {
     const bName = (item.building || "").toLowerCase().includes("chavara")
-      ? "Chavara Block"
+      ? "St Chavara Block"
       : "St Mary's Block";
     const roomPart = item.roomNumber || item.id || "";
     return `${bName} · ${roomPart ? roomPart + " · " : ""}Floor ${item.floor || ""}`;
@@ -200,7 +203,7 @@ function itemMeta(item) {
 }
 
 // ─── Single editable field with dropdown ─────────────────────────────────────
-function SearchField({ id, label, value, onChange, onSelect, results, isReadOnly, placeholder }) {
+function SearchField({ id, label, value, onChange, onSelect, results, isReadOnly, placeholder, onImageClick }) {
   const [focused, setFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef(null);
@@ -266,7 +269,12 @@ function SearchField({ id, label, value, onChange, onSelect, results, isReadOnly
 
       {focused && value.trim() && results.length > 0 && (
         <div className="yd-dropdown">
-          {results.map((item, idx) => (
+          {results.map((item, idx) => {
+            const isFaculty = item.type === "faculty";
+            const normalizedName = isFaculty ? normalizeName(item.name) : "";
+            const photoPath = isFaculty ? FACULTY_PHOTOS[normalizedName] : null;
+
+            return (
             <button
               key={`${item.id}-${idx}`}
               className={`yd-dropdown-item${idx === activeIndex ? " yd-dropdown-item--active" : ""}`}
@@ -274,13 +282,28 @@ function SearchField({ id, label, value, onChange, onSelect, results, isReadOnly
               onMouseDown={() => onSelect(item)}
               onMouseEnter={() => setActiveIndex(idx)}
             >
-              <div className="yd-dropdown-icon"><ItemIcon item={item} /></div>
+              <div 
+                className={`yd-dropdown-icon ${photoPath ? 'rounded-full overflow-hidden p-0 w-8 h-8 shrink-0 hover:opacity-80 border border-gray-200 bg-gray-100 flex items-center justify-center' : ''}`}
+                onMouseDown={(e) => {
+                  if (photoPath) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (onImageClick) onImageClick({ url: photoPath, alt: item.name });
+                  }
+                }}
+              >
+                {photoPath ? (
+                  <img src={photoPath} alt={item.name} className="w-full h-full object-cover" />
+                ) : (
+                  <ItemIcon item={item} />
+                )}
+              </div>
               <div>
                 <div className="yd-dropdown-name">{item.name}</div>
                 <div className="yd-dropdown-meta">{itemMeta(item)}</div>
               </div>
             </button>
-          ))}
+          )})}
         </div>
       )}
       {focused && value.trim() && results.length === 0 && (
@@ -311,6 +334,7 @@ export default function YDCard({
   onOutdoorNavigation,
   hintMessage = "Enter your current location",
 }) {
+  const [selectedImage, setSelectedImage] = useState(null);
   const { searchItems: SEARCH_ITEMS } = useDatabase();
 
   // ── Outdoor destination search state ────────────────────────────────────────
@@ -426,10 +450,16 @@ export default function YDCard({
                 onSelect={handleOutdoorDestSelect}
                 results={outdoorResults}
                 placeholder="Search destination…"
+                onImageClick={setSelectedImage}
               />
             </div>
           </div>
         </div>
+        <ImageModal 
+          imageUrl={selectedImage?.url} 
+          altText={selectedImage?.alt} 
+          onClose={() => setSelectedImage(null)} 
+        />
       </div>
     );
   }
@@ -457,7 +487,13 @@ export default function YDCard({
               }}
               results={indoorSourceResults}
               placeholder={hintMessage}
+              onImageClick={setSelectedImage}
             />
+            {mode === "indoor" && !source && (
+              <div className="text-[11px] font-bold text-amber-600 px-2 mt-0.5 animate-pulse flex items-center gap-1">
+                <span>⚠️</span> Please select your starting room
+              </div>
+            )}
             <div className="yd-divider" />
             <SearchField
               id="dest"
@@ -467,54 +503,43 @@ export default function YDCard({
               onSelect={(item) => { setDest(item); setDestText(item.name); }}
               results={indoorDestResults}
               placeholder="Search room or faculty…"
+              onImageClick={setSelectedImage}
             />
           </div>
 
-          {/* Route button */}
-          <div style={{ display: "flex", alignItems: "center", marginLeft: 8, flexShrink: 0 }}>
-            <button
-              className="w-12 h-12 bg-primary hover:bg-primary-hover disabled:bg-gray-300 disabled:text-gray-500 text-white rounded-full transition-all shadow-[0_4px_12px_rgb(37,99,235,0.2)] flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
-              style={{ width: 44, height: 44, borderRadius: "50%", border: "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer" }}
-              type="button"
-              disabled={!source || !dest}
-              onClick={handleIndoorRoute}
-              aria-label="Show Indoor Route"
-            >
-              <Navigation2 size={18} style={{ opacity: !source || !dest ? 0.4 : 1 }} />
-            </button>
-          </div>
         </div>
 
-        {/* Exit indoor mode */}
-        {onOutdoorNavigation && (
-          <button
-            type="button"
-            style={{
-              marginTop: 8,
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#6b7280",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: "4px 0",
-              borderRadius: 8,
-              transition: "color 0.15s",
-            }}
-            onClick={onOutdoorNavigation}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#111827")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#6b7280")}
-          >
-            <ArrowUpRight size={14} />
-            Back to outdoor map
-          </button>
-        )}
       </div>
+
+      {/* Destination Info & Start Navigation Button - Rendered at bottom of page via Portal */}
+      {dest && typeof document !== "undefined" && createPortal(
+        <div className="navigation-card pointer-events-auto shadow-[0_-8px_30px_rgba(15,23,42,0.12)]">
+          <p className="text-[14.5px] text-gray-700 leading-snug mb-3">
+            <strong>{dest.name}</strong> is in the <strong>
+              {(() => {
+                const f = String(dest.floor || "0").toLowerCase();
+                if (f === "0" || f === "ground") return "ground floor";
+                if (f.includes("floor")) return f;
+                return `${f} floor`;
+              })()}
+            </strong> of <strong>{(dest.building || "").toLowerCase().includes("chavara") ? "St Chavara Block" : "St Mary's Block"}</strong>.
+          </p>
+          <button
+            className="w-full h-11.5 bg-primary hover:bg-primary-hover disabled:bg-gray-300 disabled:text-gray-500 text-white font-semibold rounded-full transition-all shadow-[0_4px_12px_rgb(37,99,235,0.2)] flex items-center justify-center cursor-pointer disabled:cursor-not-allowed text-[15px]"
+            type="button"
+            disabled={!source || !dest}
+            onClick={handleIndoorRoute}
+          >
+            Start navigation
+          </button>
+        </div>,
+        document.getElementById("root") || document.body
+      )}
+      <ImageModal 
+        imageUrl={selectedImage?.url} 
+        altText={selectedImage?.alt} 
+        onClose={() => setSelectedImage(null)} 
+      />
     </div>
   );
 }

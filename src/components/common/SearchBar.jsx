@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useDatabase } from "../../context/DatabaseContext";
 import { Search, X, User, DoorOpen, MapPin, Building2, Mic, QrCode } from "lucide-react";
-
+import ImageModal from "./ImageModal";
+import { normalizeName, FACULTY_PHOTOS } from "./BottomSheet";
 // Alias dictionary for intelligent acronym & term matching
 const ALIASES = {
   cse: ["computer science", "computer science and engineering", "cs"],
@@ -46,6 +47,7 @@ const DEFAULT_SUGGESTIONS = [
  */
 function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
   const { searchItems: SEARCH_ITEMS } = useDatabase();
+  const [selectedImage, setSelectedImage] = useState(null);
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -54,7 +56,7 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
   const placeholders = useMemo(() => [
     "Search for a room...",
     "Search for restrooms...",
-    "Search for Chavara Block...",
+    "Search for St Chavara Block...",
     "Search for faculty..."
   ], []);
   
@@ -357,11 +359,11 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
 
   const getItemMeta = (item) => {
     if (item.type === "faculty") {
-      const bName = (item.building || "").toLowerCase().includes("chavara") ? "Chavara Block" : "St Mary's Block";
+      const bName = (item.building || "").toLowerCase().includes("chavara") ? "St Chavara Block" : "St Mary's Block";
       return `${item.designation || "Faculty"} · ${item.department || ""} (${bName})`;
     }
     if (item.type === "room") {
-      const bName = (item.building || "").toLowerCase().includes("chavara") ? "Chavara Block" : "St Mary's Block";
+      const bName = (item.building || "").toLowerCase().includes("chavara") ? "St Chavara Block" : "St Mary's Block";
       // Show room number/code alongside floor so code-only names are identifiable
       const roomCode = item.id && item.id !== item.name ? ` · ${item.id}` : "";
       return `${bName}${roomCode} · Floor ${item.floor}`;
@@ -410,22 +412,39 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
         <div className="absolute top-18 left-4 right-4 bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] border border-gray-100 overflow-hidden z-[2000]" ref={resultsRef}>
           {results.length > 0 ? (
             <div className="py-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
-              {results.map((location, index) => (
+              {results.map((location, index) => {
+                const isFaculty = location.type === "faculty";
+                const normalizedName = isFaculty ? normalizeName(location.name) : "";
+                const photoPath = isFaculty ? FACULTY_PHOTOS[normalizedName] : null;
+
+                return (
                 <button
                   className={`w-full text-left px-5 py-3 flex items-center gap-4 transition-colors ${index === activeIndex ? "bg-blue-50/80" : "hover:bg-gray-50"}`}
                   key={`${location.id}-${index}`}
                   onClick={() => handleSelect(location)}
                   onMouseEnter={() => setActiveIndex(index)}
                 >
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${getItemIconWrapperClass(location, index === activeIndex)}`}>
-                    {getItemIcon(location)}
+                  <div 
+                    className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 overflow-hidden ${photoPath ? 'cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 border border-gray-200' : getItemIconWrapperClass(location, index === activeIndex)}`}
+                    onClick={(e) => {
+                      if (photoPath) {
+                        e.stopPropagation();
+                        setSelectedImage({ url: photoPath, alt: location.name });
+                      }
+                    }}
+                  >
+                    {photoPath ? (
+                      <img src={photoPath} alt={location.name} className="w-full h-full object-cover object-center" />
+                    ) : (
+                      getItemIcon(location)
+                    )}
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-[15px] font-semibold text-gray-900 truncate">{location.name}</span>
                     <span className="text-[13px] text-gray-500 truncate">{getItemMeta(location)}</span>
                   </div>
                 </button>
-              ))}
+              )})}
             </div>
           ) : (
             <div className="p-8 flex flex-col items-center justify-center text-gray-400">
@@ -435,6 +454,11 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
           )}
         </div>
       )}
+      <ImageModal 
+        imageUrl={selectedImage?.url} 
+        altText={selectedImage?.alt} 
+        onClose={() => setSelectedImage(null)} 
+      />
     </div>
   );
 }

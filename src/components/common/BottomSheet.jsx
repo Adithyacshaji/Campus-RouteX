@@ -1,6 +1,122 @@
 import { Sheet } from "react-modal-sheet";
-import { memo } from "react";
-import { ChevronRight, School, Layers, TestTube, Car, Bath, Library, Users, Coffee, Navigation } from "lucide-react";
+import { memo, useState } from "react";
+import ImageModal from "./ImageModal";
+import { ChevronRight, School, Layers, TestTube, Car, Bath, Library, Users, Coffee, Navigation, User } from "lucide-react";
+
+export const normalizeName = (name) => {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/\s*\(.*?\)\s*/g, '')
+    .replace(/^(dr|mr|ms|mrs|prof|sr)\.?\s+/g, '')
+    .replace(/[^a-z]/g, '');
+};
+
+export const FACULTY_PHOTOS = {
+  "anaghramesh": "/Faculty photos/BSH/Anagh Ramesh.jpg",
+  "bincytj": "/Faculty photos/BSH/Bincy T J.jpg",
+  "dianamathew": "/Faculty photos/BSH/Diana Mathew.jpg",
+  "hingstonxavier": "/Faculty photos/MBA/Hingston Xavier.png",
+  "keerthanakr": "/Faculty photos/BSH/Keerthana K R.jpg",
+  "midhuelizabeth": "/Faculty photos/BSH/Midhu Elizabeth.jpg",
+  "neethuk": "/Faculty photos/BSH/Neethu K.jpg",
+  "petcyanniemm": "/Faculty photos/BSH/Petcy Annie M M.jpg",
+  "reenacg": "/Faculty photos/BSH/Reena C G.jpg",
+  "reshmapb": "/Faculty photos/BSH/Reshma PB.jpg",
+  "revathygkrishnan": "/Faculty photos/BSH/Revathy G Krishnan.jpg",
+  "susenjose": "/Faculty photos/BSH/Susen Jose.jpg",
+  "vdjhon": "/Faculty photos/BSH/VD Jhon.jpg",
+  "vinayajose": "/Faculty photos/BSH/Vinaya Jose.jpg",
+  "vishnuk": "/Faculty photos/BSH/Vishnu K.jpg",
+  "abhishekpw": "/Faculty photos/Civil/Abhishek P W.jpg",
+  "angithasasidharan": "/Faculty photos/Civil/Angitha Sasidharan.jpg",
+  "bindurajan": "/Faculty photos/Civil/Bindu Rajan.jpg",
+  "godwinpa": "/Faculty photos/Civil/Godwin P A.jpg",
+  "jinojohn": "/Faculty photos/Civil/Jino John.jpg",
+  "melbyjoy": "/Faculty photos/Civil/Melby Joy.jpg",
+  "neenujohnson": "/Faculty photos/Civil/Neenu Johnson.jpg",
+  "prabhashankarvp": "/Faculty photos/Civil/Prabhashankar V P.jpg",
+  "riyajoseph": "/Faculty photos/Civil/Riya Joseph.jpg",
+  "sherjahpyousaf": "/Faculty photos/Civil/Sherjah P Yousaf.jpg",
+  "shicyns": "/Faculty photos/Civil/Shicy N S.jpg",
+  "vinithaev": "/Faculty photos/Civil/Vinitha E V.jpg",
+  "vivekkviswanath": "/Faculty photos/Civil/Vivek K Viswanath.jpg",
+  "aiswaryasm": "/Faculty photos/CSE/Aiswarya SM.jpg",
+  "anmariyawilson": "/Faculty photos/CSE/Anmariya  Wilson.jpg",
+  "annaalphy": "/Faculty photos/CSE/Anna Alphy.png",
+  "athithyas": "/Faculty photos/CSE/Athithya S.jpg",
+  "bijyantony": "/Faculty photos/CSE/Bijy Antony.jpg",
+  "chaithanniats": "/Faculty photos/CSE/Chaithannia T S.jpg",
+  "dincyrarrikat": "/Faculty photos/CSE/Dincy R Arrikat.jpg",
+  "divyar": "/Faculty photos/CSE/Divya R.png",
+  "himajose": "/Faculty photos/CSE/Hima Jose.jpg",
+  "irisjose": "/Faculty photos/CSE/Iris Jose.jpg",
+  "jasminejolly": "/Faculty photos/CSE/Jasmine Jolly.png",
+  "jibytc": "/Faculty photos/CSE/Jiby T C.jpg",
+  "jincydenny": "/Faculty photos/CSE/Jincy Denny.jpg",
+  "krishnapriyaps": "/Faculty photos/CSE/Krishnapriya P S.jpg",
+  "mariyaseby": "/Faculty photos/CSE/Mariya Seby.jpg",
+  "merrylmaryforbin": "/Faculty photos/CSE/Merryl Mary Forbin.jpg",
+  "monishathomas": "/Faculty photos/CSE/Monisha Thomas.jpg",
+  "neethupr": "/Faculty photos/CSE/Neethu P R.jpg",
+  "nithacvelayudhan": "/Faculty photos/CSE/Nitha C Velayudhan.jpg",
+  "prashantkbaby": "/Faculty photos/CSE/Prashant K Baby.png",
+  "reshmakv": "/Faculty photos/CSE/Reshma K V.jpg",
+  "rinsuaravind": "/Faculty photos/CSE/Rinsu Aravind.jpg",
+  "sabiraps": "/Faculty photos/CSE/Sabira P S.jpg",
+  "salishplouis": "/Faculty photos/CSE/Salish P Louis.jpg",
+  "simmifrancis": "/Faculty photos/CSE/Simmi Francis.jpg",
+  "soorajtr": "/Faculty photos/CSE/Sooraj T R.jpg",
+  "sreethaes": "/Faculty photos/CSE/Sreetha E S.jpg",
+  "sunijose": "/Faculty photos/CSE/Suni Jose.jpg",
+  "vaishakckrishnan": "/Faculty photos/CSE/Vaishak C Krishnan.jpg",
+  "vineethakv": "/Faculty photos/CSE/Vineetha K V.jpg",
+  "ajeeshs": "/Faculty photos/ECE/Ajeesh S.png",
+  "anittaantony": "/Faculty photos/ECE/Anitta Antony.jpg",
+  "carenbabu": "/Faculty photos/ECE/Caren Babu.jpg",
+  "catherinejnereveett": "/Faculty photos/ECE/Catherine J Nereveett.jpg",
+  "dellareasavaliaveet": "/Faculty photos/ECE/Della Reasa Valiaveet.jpg",
+  "krishnapriyas": "/Faculty photos/ECE/Krishnapriya S.jpg",
+  "manjuikollannur": "/Faculty photos/ECE/Manju I Kollannur.jpg",
+  "sangeethsomarajan": "/Faculty photos/ECE/Sangeeth Somarajan.jpg",
+  "sibinlalms": "/Faculty photos/ECE/Sibinlal M S.jpg",
+  "swathypm": "/Faculty photos/ECE/Swathy P M.jpg",
+  "vinojpg": "/Faculty photos/ECE/Vinoj P G.jpg",
+  "aneeshku": "/Faculty photos/EEE/Aneesh K U.jpg",
+  "anjanasomasundaran": "/Faculty photos/EEE/Anjana Somasundaran.jpg",
+  "emilinthomas": "/Faculty photos/EEE/Emilin Thomas.jpg",
+  "jinukt": "/Faculty photos/EEE/Jinu K T.jpg",
+  "needhuvarghese": "/Faculty photos/EEE/Needhu Varghese.jpg",
+  "nithinks": "/Faculty photos/Mech/Nithin K S.jpg",
+  "preethipi": "/Faculty photos/EEE/Preethi P I.jpg",
+  "rarimm": "/Faculty photos/EEE/Rari M M.jpg",
+  "thakkupeter": "/Faculty photos/EEE/Thakku Peter.jpg",
+  "vipinpadmanaban": "/Faculty photos/EEE/Vipin padmanaban.jpg",
+  "vishnupm": "/Faculty photos/EEE/Vishnu P M.jpg",
+  "johnvd": "/Faculty photos/Main/John V.D.jpg",
+  "manojgeorge": "/Faculty photos/Mech/Manoj George.jpg",
+  "sajeevjohn": "/Faculty photos/Main/Sajeev John.jpg",
+  "sijomt": "/Faculty photos/Main/Sijo M T.jpg",
+  "jhonmathew": "/Faculty photos/MBA/Jhon Mathew.png",
+  "kavyakb": "/Faculty photos/MBA/Kavya K B.png",
+  "nivithapaul": "/Faculty photos/MBA/Nivitha Paul.png",
+  "snehajhonp": "/Faculty photos/MBA/Sneha Jhon P.png",
+  "tintababy": "/Faculty photos/MBA/Tinta Baby.png",
+  "aloshjames": "/Faculty photos/Mech/Alosh James.jpg",
+  "anexkp": "/Faculty photos/Mech/Anex K P.jpg",
+  "aswathypsajeev": "/Faculty photos/Mech/Aswathy P Sajeev.jpeg",
+  "balakrishnancr": "/Faculty photos/Mech/Balakrishnan C R.jpg",
+  "bejoyjose": "/Faculty photos/Mech/Bejoy Jose.jpg",
+  "donydominic": "/Faculty photos/Mech/Dony Dominic.jpg",
+  "jackwinvincent": "/Faculty photos/Mech/Jackwin Vincent.jpg",
+  "jomonaj": "/Faculty photos/Mech/Jomon A J.jpg",
+  "joyet": "/Faculty photos/Mech/Joy E T.jpg",
+  "reynoldjose": "/Faculty photos/Mech/Reynold Jose.jpg",
+  "rojinmathew": "/Faculty photos/Mech/Rojin Mathew.jpg",
+  "roshandavid": "/Faculty photos/Mech/Roshan David.jpg",
+  "sanjeshks": "/Faculty photos/Mech/Sanjesh K S.jpg",
+  "viswanathkkaimal": "/Faculty photos/Mech/Viswanath K Kaimal.jpg"
+};
 
 const getIcon = (title) => {
   switch (title.toLowerCase()) {
@@ -32,6 +148,8 @@ function BottomSheet({
   onSelectCategory,
   onLocateUser,
 }) {
+  const [selectedImage, setSelectedImage] = useState(null);
+
   const renderDefaultExplore = () => (
     <div className="pt-3 animate-[fadeIn_0.4s_ease-out]">
       <div className="flex items-center justify-between mb-10 px-5">
@@ -102,6 +220,7 @@ function BottomSheet({
   );
 
   return (
+    <>
     <Sheet isOpen={open} onClose={onClose} snapPoints={[200, 500, 0]}>
       <Sheet.Container className="rounded-t-[28px]! shadow-[0_-8px_40px_rgb(0,0,0,0.12)]!">
         <Sheet.Header />
@@ -137,11 +256,38 @@ function BottomSheet({
                     ← Back
                   </button>
                   <h3 className="text-[18px] font-bold mb-4">{selectedDepartment.name}</h3>
-                  {selectedDepartment.faculties.map((faculty, index) => (
-                    <div className="p-4 mb-3 bg-white rounded-[20px] shadow-[0_2px_10px_rgb(0,0,0,0.05)] border border-gray-100 flex flex-col gap-1" key={index}>
-                      <h4 className="text-[16px] font-semibold">{faculty.name}</h4>
-                      <p className="text-[14px] text-gray-600">{faculty.designation}</p>
-                      <span className="text-[12px] text-gray-500 mb-2">Room: {faculty.room}</span>
+                  {selectedDepartment.faculties.map((faculty, index) => {
+                    const normalizedName = normalizeName(faculty.name);
+                    const photoPath = FACULTY_PHOTOS[normalizedName];
+
+                    return (
+                      <div className="p-4 mb-3 bg-white rounded-[20px] shadow-[0_2px_10px_rgb(0,0,0,0.05)] border border-gray-100 flex flex-col gap-1" key={index}>
+                        <div className="flex items-center gap-4">
+                          <div 
+                            className={`w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center shrink-0 border border-gray-200 overflow-hidden ${photoPath ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                            onClick={(e) => {
+                              if (photoPath) {
+                                e.stopPropagation();
+                                setSelectedImage({ url: photoPath, alt: faculty.name });
+                              }
+                            }}
+                          >
+                            {photoPath ? (
+                              <img 
+                                src={photoPath} 
+                                alt={faculty.name} 
+                                className="w-full h-full object-cover object-center"
+                              />
+                            ) : (
+                              <User size={24} className="text-gray-400" />
+                            )}
+                          </div>
+                          <div className="flex flex-col flex-1">
+                            <h4 className="text-[16px] font-semibold text-gray-900 leading-tight">{faculty.name}</h4>
+                            <p className="text-[14px] text-gray-600 mt-0.5">{faculty.designation}</p>
+                            <span className="text-[12px] text-gray-500 mt-0.5">Room: {faculty.room}</span>
+                          </div>
+                        </div>
                       <button className="mt-2 h-10 w-full bg-blue-50 hover:bg-blue-100 text-primary font-semibold rounded-full transition-colors text-[14px]" onClick={() => {
                         const facultyLocation = {
                           id: faculty.indoorNode || faculty.room,
@@ -163,18 +309,20 @@ function BottomSheet({
                         Show Route
                       </button>
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
 
               {/* Standard List (Departments, Buildings, Labs, Cafeteria, Library, Parking, Washrooms, Classrooms) */}
               {title !== "Faculty" && Array.isArray(data) && data.map((item, index) => {
-                const destination = (title === "Department" || title === "Departments") ? item.faculties?.[0] : null;
+                const destination = (title === "Department" || title === "Departments") 
+                  ? (item.indoorNode || item.routeNode ? item : item.faculties?.[0]) 
+                  : null;
                 return (
                   <div className="p-4 mb-3 bg-white rounded-[20px] shadow-[0_2px_10px_rgb(0,0,0,0.05)] border border-gray-100 flex flex-col gap-2" key={item.id || index}>
                     <h4 className="text-[16px] font-semibold text-gray-900 leading-tight">{item.name || item.title}</h4>
                     {item.description && <p className="text-[13px] text-gray-600">{item.description}</p>}
-                    {(title === "Department" || title === "Departments") && <p className="text-[13px] text-gray-600">{destination?.routeNode === "chavara" ? "St Chavara Block" : "St Mary's Block"}</p>}
+                    {(title === "Department" || title === "Departments") && <p className="text-[13px] text-gray-600">{(destination?.building === "chavara" || destination?.routeNode === "chavara") ? "St Chavara Block" : "St Mary's Block"}</p>}
                     {(title === "Department" || title === "Departments") && <span className="text-[12px] text-gray-500">{destination?.floor ? `Floor: ${destination.floor}` : "Department office"}</span>}
                     {item.room && <span className="text-[12px] text-gray-500">{item.room}</span>}
                     <button className="mt-2 h-10 w-full bg-primary hover:bg-primary-hover text-white font-semibold rounded-full transition-colors shadow-[0_2px_8px_rgb(37,99,235,0.3)] text-[14px]" onClick={() => {
@@ -224,6 +372,12 @@ function BottomSheet({
 
       <Sheet.Backdrop />
     </Sheet>
+    <ImageModal 
+      imageUrl={selectedImage?.url} 
+      altText={selectedImage?.alt} 
+      onClose={() => setSelectedImage(null)} 
+    />
+    </>
   );
 }
 

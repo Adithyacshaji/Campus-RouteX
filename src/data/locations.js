@@ -34,6 +34,7 @@ export const LOCATIONS = [
     position: [10.356376, 76.212662],
     // type: "facility",
   },
+  
   {
     id: "canteen",
     name: "Canteen",
@@ -67,6 +68,12 @@ export const LOCATIONS = [
   {
     id: "joseph",
     name: "St Joseph's Block",
+    position: [10.358837, 76.213000],
+    // type: "building",
+  },
+  {
+    id: "joseph",
+    name: "Boy's Hostel",
     position: [10.358837, 76.213000],
     // type: "building",
   },

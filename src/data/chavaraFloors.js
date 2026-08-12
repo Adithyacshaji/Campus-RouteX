@@ -13,6 +13,7 @@ export const CHAVARA_FLOORS = {
       { id: "F013", name: "MT LAB" },
       { id: "F014", name: "Boys Toilet" },
       { id: "F015", name: "ME WORKSHOP" },
+      { id: "F015", name: "MECHANICAL WORKSHOP" },
 
     ],
     hasLift: true,
@@ -81,6 +82,7 @@ export const CHAVARA_FLOORS = {
       { id: "F312", name: "Tutorial T3" },
       { id: "F315", name: "Mechanical Engineering Lab" },
       { id: "F301", name: "DS Department" },
+      { id: "F301", name: "CS DS Department" },
       { id: "F311", name: "Computer Lab 1" },
       { id: "F307", name: "Microprocessor Lab" },
       { id: "F306", name: "Computer Centre MBA" },
@@ -109,6 +111,7 @@ export const CHAVARA_FLOORS = {
       { id: "F410", name: "Sick Room" },
       { id: "F411", name: "CS Lab-3" },
       { id: "F414", name: "Girls Toilet" },
+      { id: "F414", name: "CS BS Department" },
     ],
     hasLift: true,
     hasStairs: true,

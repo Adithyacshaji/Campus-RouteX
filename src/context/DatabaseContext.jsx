@@ -85,9 +85,13 @@ export const DatabaseProvider = ({ children }) => {
       };
       
       if (node.building === 'stmarys') {
-        stmarys[node.id] = formatted;
+        stmarys[node.id] = { 
+          ...(STATIC_INDOOR_NODES[node.id] || {}), 
+          ...formatted 
+        };
       } else {
         chavara[node.id] = {
+          ...(STATIC_CHAVARA_INDOOR_NODES[node.id] || {}),
           id: node.id,
           ...formatted
         };
@@ -157,7 +161,13 @@ export const DatabaseProvider = ({ children }) => {
       return {
         id: dept.id,
         name: dept.name,
-        faculties
+        faculties,
+        building: dept.building || undefined,
+        floor: dept.floor || undefined,
+        room: dept.room || undefined,
+        routeNode: dept.route_node || undefined,
+        indoorNode: dept.indoor_node || undefined,
+        hasIndoorNavigation: dept.has_indoor_navigation || false
       };
     });
     

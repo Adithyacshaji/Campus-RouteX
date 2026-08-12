@@ -1,9 +1,9 @@
 .floor-picker {
   position: absolute;
-  top: calc(110px + env(safe-area-inset-top, 0px));
+  top: calc(135px + env(safe-area-inset-top, 0px));
   right: 16px;
   z-index: 2000;
-  margin-top: 20px;
+  margin-top: 0px;
 }
 
 .floor-current {
