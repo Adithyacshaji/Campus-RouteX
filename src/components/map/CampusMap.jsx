@@ -357,7 +357,7 @@ function makeRoomLabelIcon(label, zoomLevel) {
     className: "",
     html: `
       <div style="
-        white-space: nowrap;
+        white-space: pre-line;
         font-size: ${fontSize}px;
         font-family: 'Inter', 'Segoe UI', sans-serif;
         font-weight: 800;
@@ -369,8 +369,8 @@ function makeRoomLabelIcon(label, zoomLevel) {
         overflow: hidden;
         text-overflow: ellipsis;
         text-align: center;
-        line-height: 1.25;
-      ">${label}</div>
+        line-height: 1.1;
+      ">${(label || "").replace(/(?:\\r\\n|\\r|\\n|\\\\n)/g, '<br/>')}</div>
     `,
     iconSize: [iconW, iconH],
     iconAnchor: [iconW / 2, iconH / 2],

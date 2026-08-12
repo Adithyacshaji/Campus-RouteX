@@ -468,7 +468,7 @@ function MainApp() {
     }
 
     return { normalizedNodes, normalizedEdges, normalizeKey };
-  }, [currentBuilding]);
+  }, [currentBuilding, INDOOR_NODES, CHAVARA_INDOOR_NODES]);
 
   const ACTIVE_INDOOR_NODES = normalizedIndoorData.normalizedNodes;
   const ACTIVE_INDOOR_EDGES = normalizedIndoorData.normalizedEdges;

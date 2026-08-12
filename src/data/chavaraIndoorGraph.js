@@ -42,7 +42,7 @@ export const CHAVARA_INDOOR_EDGES = [
     ["ch_co_15_G", "F014"],
     ["ch_co_15_G", "entrance_G2"],
     //1
-    ["F105", "CO_10"],
+    ["F104", "CO_10"],
     ["CO_10", "CO_9"],
     ["CO_9", "F106"],
     ["CO_9", "CO_8"],

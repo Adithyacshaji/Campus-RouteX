@@ -80,8 +80,8 @@ export const CHAVARA_1_NODES = {
       76.212466
     ]
   },
-  "F105": {
-    "id": "F105",
+  "F104": {
+    "id": "F104",
     "label": "Class Room ME-1",
     "floor": "1",
     "position": [

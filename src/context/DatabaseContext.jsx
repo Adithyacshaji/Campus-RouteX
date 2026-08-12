@@ -85,15 +85,19 @@ export const DatabaseProvider = ({ children }) => {
       };
       
       if (node.building === 'stmarys') {
+        const staticNode = STATIC_INDOOR_NODES[node.id] || {};
         stmarys[node.id] = { 
-          ...(STATIC_INDOOR_NODES[node.id] || {}), 
-          ...formatted 
+          ...staticNode, 
+          ...formatted,
+          label: staticNode.label || formatted.label
         };
       } else {
+        const staticNode = STATIC_CHAVARA_INDOOR_NODES[node.id] || {};
         chavara[node.id] = {
-          ...(STATIC_CHAVARA_INDOOR_NODES[node.id] || {}),
+          ...staticNode,
           id: node.id,
-          ...formatted
+          ...formatted,
+          label: staticNode.label || formatted.label
         };
       }
     });

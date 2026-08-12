@@ -3,7 +3,7 @@ export const INDOOR_NODES = {
   entrance_G: {
     floor: "G",
     position: [10.357839728305505, 76.21293168514968],
-    // label: "Entrance",
+    label: "Entrance",
     labelPosition: [10.357847, 76.212931],
   },
 
@@ -24,7 +24,7 @@ export const INDOOR_NODES = {
   N301: {
     floor: "G",
     position: [10.357863, 76.212954],
-    // label: "N301",
+    label: "N301",
     labelPosition:[10.357860, 76.212966],
   },
 

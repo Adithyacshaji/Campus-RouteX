@@ -13,7 +13,7 @@ export const CHAVARA_INDOOR_NODES = {
   },
   F003: {
     id: "F003",
-    label: "ACADEMIC DIRECTOR",
+    label: "ACADEMIC\nDIRECTOR",
     floor: "G",
     position: [10.355935, 76.212472],
     labelPosition: [10.355928, 76.212471]
@@ -193,98 +193,98 @@ export const CHAVARA_INDOOR_NODES = {
     id: "ch_stairsA_1",
     label: "Stairs",
     floor: "1",
-    position: [10.355932, 76.212383],
+    position: [10.355928, 76.212383],
   },
 
   ch_stairsB_1: {
     id: "ch_stairsB_1",
     label: "Stairs",
     floor: "1",
-    position: [10.355932, 76.212442],
+    position: [10.355924, 76.212442],
   },
   F113: {
     id: "113",
     label: "S1 CS-C",
     floor: "1",
-    position: [10.355949, 76.212351],
+    position: [10.355945, 76.212351],
   },
   F110: {
     id: "108",
     label: "HardWare Library",
     floor: "1",
-    position: [10.355949, 76.212432],
+    position: [10.355945, 76.212432],
   },
   F116: {
     id: "116",
     label: "Class Room S3 CSDS",
     floor: "1",
-    position: [10.355934, 76.212356],
+    position: [10.355930, 76.212356],
   },
   liftA_1: {
     id: "liftA_1",
     label: "Lift",
     floor: "1",
-    position: [10.355949, 76.21237],
+    position: [10.355945, 76.212370],
   },
   liftB_1: {
     id: "liftB_1",
     label: "Lift",
     floor: "1",
-    position: [10.355949, 76.212458],
+    position: [10.355945, 76.212458],
   },
   liftC_1: {
     id: "liftC_1",
     label: "Lift",
     floor: "1",
-    position: [10.355949, 76.212468],
+    position: [10.355945, 76.212468],
   },
   F101: {
     id: "101",
     label: "BSH Department Office",
     floor: "1",
-    position: [10.355934, 76.212466],
+    position: [10.355930, 76.212466],
   },
-  F105: {
-    id: "F105",
+  F104: {
+    id: "F104",
     label: "Class Room ME-1",
     floor: "1",
-    position: [10.355935, 76.21249],
+    position: [10.355931, 76.212490],
   },
   F106: {
     id: "106",
     label: "Class Room ",
     floor: "1",
-    position: [10.355949, 76.212477],
+    position: [10.355945, 76.212477],
   },
   F111: {
     id: "111",
     label: "Class Room S1 CS-B",
     floor: "1",
-    position: [10.355949, 76.212392],
+    position: [10.355945, 76.212392],
   },
   F118: {
     id: "118",
     label: "Class Room S1 CS-A",
     floor: "1",
-    position: [10.355923, 76.212408],
+    position: [10.355919, 76.212408],
   },
   F112: {
     id: "112",
     label: "Class Room S1 CS-D",
     floor: "1",
-    position: [10.355949, 76.212383],
+    position: [10.355945, 76.212383],
   },
   F115: {
     id: "F108",
     label: "Language Lab",
     floor: "1",
-    position: [10.355935, 76.212328],
+    position: [10.355931, 76.212328],
   },
   F108: {
     id: "108",
     label: "Environment Engg Lab",
     floor: "1",
-    position: [10.355959, 76.212444],
+    position: [10.355955, 76.212444],
   },
   F109: {
     id: "109",
@@ -297,97 +297,97 @@ export const CHAVARA_INDOOR_NODES = {
     id: "co_1",
     label: "co_1",
     floor: "1",
-    position: [10.355944, 76.212383],
+    position: [10.355936, 76.212383],
   },
   CO_2: {
     id: "co_2",
     label: "co_2",
     floor: "1",
-    position: [10.355944, 76.21237],
+    position: [10.355940, 76.212370],
   },
   co_3: {
     id: "co_3",
     label: "co_3",
     floor: "1",
-    position: [10.355944, 76.212351],
+    position: [10.355940, 76.212351],
   },
   CO_4: {
     id: "co_4",
     label: "co_4",
     floor: "1",
-    position: [10.355944, 76.212392],
+    position: [10.355940, 76.212392],
   },
   CO_5: {
     id: "co_5",
     label: "co_5",
     floor: "1",
-    position: [10.355944, 76.212432],
+    position: [10.355940, 76.212432],
   },
   CO_6: {
     id: "co_6",
     label: "co_6",
     floor: "1",
-    position: [10.355944, 76.212442],
+    position: [10.355940, 76.212442],
   },
   CO_7: {
     id: "co_7",
     label: "co_7",
     floor: "1",
-    position: [10.355944, 76.212458],
+    position: [10.355940, 76.212458],
   },
   CO_8: {
     id: "co_8",
     label: "co_8",
     floor: "1",
-    position: [10.355944, 76.212468],
+    position: [10.355940, 76.212468],
   },
   CO_9: {
     id: "co_9",
     label: "co_9",
     floor: "1",
-    position: [10.355944, 76.212477],
+    position: [10.355940, 76.212477],
   },
   CO_10: {
     id: "co_10",
     label: "co_10",
     floor: "1",
-    position: [10.355944, 76.21249],
+    position: [10.355940, 76.212490],
   },
   CO_11: {
     id: "co_11",
     label: "co_11",
     floor: "1",
-    position: [10.355954, 76.212442],
+    position: [10.355950, 76.212442],
   },
   CO_12: {
     id: "co_12",
     label: "co_12",
     floor: "1",
-    position: [10.355944, 76.212328],
+    position: [10.355940, 76.212328],
   },
   CO_13: {
     id: "co_13",
     label: "co_13",
     floor: "1",
-    position: [10.355944, 76.212356],
+    position: [10.355940, 76.212356],
   },
   CO_14: {
     id: "co_14",
     label: "co_14",
     floor: "1",
-    position: [10.355954, 76.212444],
+    position: [10.355950, 76.212444],
   },
   CO_15: {
     id: "co_15",
     label: "co_15",
     floor: "1",
-    position: [10.355954, 76.212438],
+    position: [10.355950, 76.212438],
   },
   CO_16: {
     id: "co_16",
     label: "co_16",
     floor: "1",
-    position: [10.355944, 76.212408],
+    position: [10.355940, 76.212408],
   },
   CO_17: {
     id: "co_17",
@@ -564,173 +564,173 @@ export const CHAVARA_INDOOR_NODES = {
     id: "F301",
     label: "DS Dept",
     floor: "3",
-    position: [10.355939, 76.212456],
+    position: [10.355929, 76.212456],
   },
   F302: {
     id: "F302",
     label: "comm engg lab",
     floor: "3",
-    position: [10.35594, 76.212483],
+    position: [10.355935, 76.212483],
   },
   F303: {
     id: "F303",
     label: "TOILET BOYS",
     floor: "3",
-    position: [10.355948, 76.212496],
+    position: [10.355943, 76.212496],
   },
   F304: {
     id: "F304",
     label:"THERMAL ENG LAB",
     floor: "3",
-    position: [10.355949, 76.212487],
+    position: [10.355944, 76.212487],
   },
   F305: {
     id: "F305",
     label:"DRAWING HALL",
     floor: "3",
-    position: [10.355948, 76.212432],
+    position: [10.355943, 76.212432],
   },
   F306: {
     id: "F306",
     label:"COMPUTER CENTRE MBA",
     floor: "3",
-    position: [10.355948, 76.212398],
+    position: [10.355943, 76.212398],
   },
   F307: {
     id: "F307",
     label:"MICROPROCESSOR LAB",
     floor: "3",
-    position: [10.355948, 76.212379],
+    position: [10.355943, 76.212379],
   },
   F308: {
     id: "F308",
     label:"SIGNAL PROCESSING LAB",
     floor: "3",
-    position: [10.355948, 76.212352],
+    position: [10.355943, 76.212352],
   },
   F309: {
     id: "F309",
     label:"TOILET GIRLS",
     floor: "3",
-    position: [10.355949, 76.212331],
+    position: [10.355944, 76.212331],
   },
   F310: {
     id: "F310",
     label:"DIGITAL ELECTRONICS LAB",
     floor: "3",
-    position: [10.35594, 76.212339],
+    position: [10.355935, 76.212339],
   },
   F311: {
     id: "F311",
     label:"COMPUTER LAB",
     floor: "3",
-    position: [10.35594, 76.212358],
+    position: [10.355935, 76.212358],
   },
   F312: {
     id: "F312",
     label:"TUTORIAL ROOM",
     floor: "3",
-    position: [10.35594, 76.21237],
+    position: [10.355935, 76.212370],
   },    
   F315: {
     id: "F315",
     label:"ME LAB",
     floor: "3",
-    position: [10.35593, 76.212403],
+    position: [10.355925, 76.212403],
   },
   stairsA_3: {
     id: "stairsA_3",
     label: "Stairs",
     floor: "3",
-    position: [10.355938, 76.212384],
+    position: [10.355933, 76.212384],
   },
   stairsB_3: {
     id: "stairsB_3",
     label: "Stairs",
     floor: "3",
-    position: [10.355938, 76.212438],
+    position: [10.355933, 76.212438],
   },
   liftA_3: {
     id: "liftA_3",
     label: "Lift",
     floor: "3",
-    position: [10.355948, 76.21237],
+    position: [10.355943, 76.212370],
   },
   liftB_3: {
     id: "liftB_3",
     label: "Lift",
     floor: "3",
-    position: [10.355948, 76.212451],
+    position: [10.355943, 76.212451],
   },
   liftC_3: {
     id: "liftC_3",
     label: "Lift",
     floor: "3",
-    position: [10.355948, 76.21246],
+    position: [10.355943, 76.212460],
   },
   co_1_3: {
     floor: "3",
-    position: [10.355944, 76.21237],
+    position: [10.355939, 76.212370],
   },
   co_2_3: {
     floor: "3",
-    position: [10.355944, 76.212379],
+    position: [10.355939, 76.212379],
   },
   co_3_3: {
     floor: "3",
-    position: [10.355944, 76.212384],
+    position: [10.355939, 76.212384],
   },
   co_4_3: {
     floor: "3",
-    position: [10.355944, 76.212398],
+    position: [10.355939, 76.212398],
   },
   co_5_3: {
     floor: "3",
-    position: [10.355944, 76.212432],
+    position: [10.355939, 76.212432],
   },
   co_6_3: {
     floor: "3",
-    position: [10.355944, 76.212438],
+    position: [10.355939, 76.212438],
   },
   co_7_3: {
     floor: "3",
-    position: [10.355944, 76.21246],
+    position: [10.355939, 76.212460],
   },
   co_8_3: {
     floor: "3",
-    position: [10.355944, 76.212483],
+    position: [10.355939, 76.212483],
   },
   co_9_3: {
     floor: "3",
-    position: [10.355944, 76.212496], 
+    position: [10.355939, 76.212496], 
   },
   co_10_3: {
     floor: "3",
-    position: [10.355944, 76.212456], 
+    position: [10.355939, 76.212456], 
   },
   co_11_3: {
     floor: "3",
-    position: [10.355944, 76.212451], 
+    position: [10.355939, 76.212451], 
   },
    co_12_3: {
     floor: "3",
-    position: [10.355944, 76.212487], 
+    position: [10.355939, 76.212487], 
   },
   co_13_3: {
     floor: "3",
-    position: [10.355944, 76.212403], 
+    position: [10.355939, 76.212403], 
   },
   co_14_3: {
     floor: "3",
-    position: [10.355944, 76.212358], 
+    position: [10.355939, 76.212358], 
   },
    co_15_3: {
     floor: "3",
-    position: [10.355944, 76.212352], 
+    position: [10.355939, 76.212352], 
   },
   co_16_3: {
     floor: "3",
-    position: [10.355944, 76.212339], 
+    position: [10.355939, 76.212339], 
   },
   co_17_3: {
     floor: "3",
@@ -904,173 +904,173 @@ export const CHAVARA_INDOOR_NODES = {
     id: "stairsA_5",
     label: "Stairs",
     floor: "5",
-    position: [10.355936, 76.212384],
+    position: [10.355938, 76.212384],
   },
 
   stairsB_5: {
     id: "stairsB_5",
     label: "Stairs",
     floor: "5",
-    position: [10.355936, 76.212437],
+    position: [10.355938, 76.212437],
   },
 
   liftA_5: {
     id: "liftA_5",
     label: "Lift",
     floor: "5",
-    position: [10.355957, 76.212367],
+    position: [10.355959, 76.212367],
   },
 
   liftB_5: {
     id: "liftB_5",
     label: "Lift",
     floor: "5",
-    position: [10.355956, 76.212453],
+    position: [10.355960, 76.212453],
   },
 
   F501: {
     floor: "5",
-    position: [10.355937, 76.212445],
+    position: [10.355939, 76.212445],
   },
 
   F504: {
     floor: "5",
-    position: [10.355937, 76.212483],
+    position: [10.355939, 76.212483],
   },
 
   F505: {
     floor: "5",
-    position: [10.355952, 76.212498],
+    position: [10.355954, 76.212498],
   },
 
   F506: {
     floor: "5",
-    position: [10.355948, 76.212477],
+    position: [10.355950, 76.212477],
   },
 
   F507: {
     floor: "5",
-    position: [10.355947, 76.212441],
+    position: [10.355949, 76.212441],
   },
 
   F508: {
     floor: "5",
-    position: [10.355952, 76.212397],
+    position: [10.355954, 76.212397],
   },
 
   F509: {
     floor: "5",
-    position: [10.355948, 76.212379],
+    position: [10.355950, 76.212379],
   },
 
   F511: {
     floor: "5",
-    position: [10.355948, 76.212352],
+    position: [10.355950, 76.212352],
   },
 
   F512: {
     floor: "5",
-    position: [10.355954, 76.212329],
+    position: [10.355956, 76.212329],
   },
 
   F513: {
     floor: "5",
-    position: [10.355932, 76.212337],
+    position: [10.355934, 76.212337],
   },
 
   F514: {
     floor: "5",
-    position: [10.355933, 76.212356],
+    position: [10.355935, 76.212356],
   },
 
   F515: {
     floor: "5",
-    position: [10.355934, 76.212373],
+    position: [10.355936, 76.212373],
   },
 
   F518: {
     floor: "5",
-    position: [10.355927, 76.212421],
+    position: [10.355929, 76.212421],
   },
 
   co_1_5: {
     floor: "5",
-    position: [10.355942, 76.212384],
+    position: [10.355944, 76.212384],
   },
 
   co_2_5: {
     floor: "5",
-    position: [10.355942, 76.212379],
+    position: [10.355944, 76.212379],
   },
 
   co_3_5: {
     floor: "5",
-    position: [10.355942, 76.212373],
+    position: [10.355944, 76.212373],
   },
 
   co_4_5: {
     floor: "5",
-    position: [10.355942, 76.212356],
+    position: [10.355944, 76.212356],
   },
 
   co_5_5: {
     floor: "5",
-    position: [10.355942, 76.212352],
+    position: [10.355944, 76.212352],
   },
 
   co_6_5: {
     floor: "5",
-    position: [10.355942, 76.212337],
+    position: [10.355944, 76.212337],
   },
 
   co_7_5: {
     floor: "5",
-    position: [10.355942, 76.212329],
+    position: [10.355944, 76.212329],
   },
 
   co_8_5: {
     floor: "5",
-    position: [10.355942, 76.212367],
+    position: [10.355944, 76.212367],
   },
 
   co_9_5: {
     floor: "5",
-    position: [10.355942, 76.212397],
+    position: [10.355944, 76.212397],
   },
 
   co_10_5: {
     floor: "5",
-    position: [10.355942, 76.212421],
+    position: [10.355944, 76.212421],
   },
 
   co_11_5: {
     floor: "5",
-    position: [10.355942, 76.212437],
+    position: [10.355944, 76.212437],
   },
 
   co_12_5: {
     floor: "5",
-    position: [10.355942, 76.212441],
+    position: [10.355944, 76.212441],
   },
 
   co_13_5: {
     floor: "5",
-    position: [10.355942, 76.212445],
+    position: [10.355944, 76.212445],
   },
 
   co_14_5: {
     floor: "5",
-    position: [10.355942, 76.212453],
+    position: [10.355944, 76.212453],
   },
 
   co_15_5: {
     floor: "5",
-    position: [10.355942, 76.212477],
+    position: [10.355944, 76.212477],
   },
 
   co_16_5: {
     floor: "5",
-    position: [10.355942, 76.212483],
+    position: [10.355944, 76.212483],
   },
 
   co_17_5: {
@@ -1082,157 +1082,157 @@ export const CHAVARA_INDOOR_NODES = {
     id: "F605",
     label: "TOILET",
     floor: "6",
-    position: [10.35595, 76.2125],
+    position: [10.355938, 76.212500],
   },
   F607: {
     id: "F607",
     label: "MEASUREMENT LAB",
     floor: "6",
-    position: [10.35595, 76.212453],
+    position: [10.355944, 76.212453],
   },
   F608: {
     id: "F608",
     label: "CS PROGRAMMING LAB-2",
     floor: "6",
-    position: [10.35595, 76.212432],
+    position: [10.355944, 76.212432],
   },
   F609: {
     id: "F609",
     label: "PG LANGUAGE LAB",
     floor: "6",
-    position: [10.35595, 76.212416],
+    position: [10.355944, 76.212416],
   },
   F610: {
     id: "F610",
     label: "CS PROGRAMMING LAB-1",
     floor: "6",
-    position: [10.35595, 76.212398],
+    position: [10.355944, 76.212398],
   },
   F611: {
     id: "F611",
     label: "S3-BS CLASSROOM",
     floor: "6",
-    position: [10.35595, 76.212375],
+    position: [10.355944, 76.212375],
   },
   F612: {
     id: "F612",
     label: "S1 ECE VLSI",
     floor: "6",
-    position: [10.35595, 76.21235],
+    position: [10.355944, 76.212350],
   },
   F613: {
     id: "F613",
     label: "TOILET",
     floor: "6",
-    position: [10.35595, 76.212325],
+    position: [10.355944, 76.212325],
   },
   F614: {
     id: "F614",
     label:"BOYS COMMON ROOM",
     floor: "6",
-    position: [10.35594, 76.212338],
+    position: [10.355934, 76.212338],
   },
   F615: {
     id: "F615",
     label:"S7 ME CLASSROOM",
     floor: "6",
-    position: [10.35594, 76.212358],
+    position: [10.355934, 76.212358],
   },
   F616: {
     id: "F616",
     label:"TUTORIAL UG",
     floor: "6",
-    position: [10.355939, 76.212367],
+    position: [10.355933, 76.212367],
   },
   F619: {
     id: "F619",
     label:"TUTORIAL UG",
     floor: "6",
-    position: [10.355926, 76.212412],
+    position: [10.355920, 76.212412],
   },
   stairsA_6: {
     id: "stairsA_6",
     label: "Stairs",
     floor: "6",
-    position: [10.355941, 76.212383],
+    position: [10.355935, 76.212383],
   },
   stairsB_6: {
     id: "stairsB_6",
     label: "Stairs",
     floor: "6",
-    position: [10.355941, 76.212444],
+    position: [10.355935, 76.212444],
   },
   liftA_6: {
     id: "liftA_6",
     label: "Lift",
     floor: "6",
-    position: [10.355949, 76.212364],
+    position: [10.355943, 76.212364],
   },
   liftB_6: {
     id: "liftB_6",
     label: "Lift",
     floor: "6",
-    position: [10.355949, 76.212467],
+    position: [10.355943, 76.212467],
   },
   co_1_6: {
     floor: "6",
-    position: [10.355946, 76.212364],
+    position: [10.355940, 76.212364],
   },
   co_2_6: {
     floor: "6",
-    position: [10.355946, 76.212375],
+    position: [10.355940, 76.212375],
   },
   co_3_6: {
     floor: "6",
-    position: [10.355946, 76.212383],
+    position: [10.355940, 76.212383],
   },
   co_4_6: {
     floor: "6",
-    position: [10.355946, 76.212398],
+    position: [10.355940, 76.212398],
   },
   co_5_6: {
     floor: "6",
-    position: [10.355946, 76.212416],
+    position: [10.355940, 76.212416],
   },
   co_6_6: {
     floor: "6",
-    position: [10.355946, 76.212432],
+    position: [10.355940, 76.212432],
   },
   co_7_6: {
     floor: "6",
-    position: [10.355946, 76.212444],
+    position: [10.355940, 76.212444],
   },
   co_8_6: {
     floor: "6",
-    position: [10.355946, 76.212453],
+    position: [10.355940, 76.212453],
   },
   co_9_6: {
     floor: "6",
-    position: [10.355946, 76.212467],
+    position: [10.355940, 76.212467],
   },
   co_10_6: {
     floor: "6",
-    position: [10.355946, 76.21235],
+    position: [10.355940, 76.212350],
   },
   co_11_6: {
     floor: "6",
-    position: [10.355946, 76.212338],
+    position: [10.355940, 76.212338],
   },
   co_12_6: {
     floor: "6",
-    position: [10.355946, 76.212325],
+    position: [10.355940, 76.212325],
   },
   co_13_6: {
     floor: "6",
-    position: [10.355946, 76.2125],
+    position: [10.355940, 76.212500],
   },
   co_14_6: {
     floor: "6",
-    position: [10.355946, 76.212412],
+    position: [10.355940, 76.212412],
   },
   co_15_6: {
     floor: "6",
-    position: [10.355946, 76.212367],
+    position: [10.355940, 76.212367],
   },
    co_16_6: {
     floor: "6",

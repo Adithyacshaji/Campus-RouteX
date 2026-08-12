@@ -1,6 +1,6 @@
 export const CHAVARA_1_EDGES = [
   [
-    "F105",
+    "F104",
     "CO_10"
   ],
   [
