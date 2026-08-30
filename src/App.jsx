@@ -154,7 +154,7 @@ function getIndoorEntranceNode(building, outdoorEntrance, _userLoc = null) {
 
 // ── GPS debug toggle ─────────────────────────────────────────────────────────
 // Set to true while testing away from campus; set it back to false for real GPS.
-const USE_DEBUG_LOCATION = false;
+const USE_DEBUG_LOCATION = true;
 const USER_LOCATION = {
   lat:10.356260,
   lng: 76.212599,
