@@ -59,6 +59,15 @@ function getIndoorZoomConfig(building) {
   };
 }
 
+function normalizeFloor(floor) {
+  if (!floor) return "G";
+  const fStr = floor.toString().toUpperCase().trim();
+  if (fStr.startsWith("B")) return fStr;
+  if (fStr.startsWith("G")) return "G";
+  const match = fStr.match(/(\d+)/);
+  if (match) return match[1];
+  return floor;
+}
 
 // ─── Buildings list ───────────────────────────────────────────────────────────
 const BUILDINGS = [
@@ -517,9 +526,18 @@ function CampusMap({
 
   // Destination marker: show a pin at the fixed route endpoint (last node
   // of the *full* planned route) so it stays in place while the trimmed
-  // route shrinks behind the user. Fall back to the LOCATIONS table for
-  // the popup name.
-  const routeDestinationPos = route.length > 0 ? route[route.length - 1] : null;
+  // route shrinks behind the user. When there is no route (e.g. user is
+  // outside campus), fall back to the destination's own position so the
+  // red pin still appears at the selected location.
+  const routeDestinationPos =
+    route.length > 0
+      ? route[route.length - 1]
+      : destination?.position ||
+        (destination?.id && LOCATIONS.find((l) => l.id === destination.id)?.position) ||
+        (destination?.routeNode && LOCATIONS.find((l) => l.id === destination.routeNode)?.position) ||
+        (selectedLocation?.position) ||
+        (selectedLocation?.id && LOCATIONS.find((l) => l.id === selectedLocation.id)?.position) ||
+        null;
   const destinationMarkerName =
     (selectedLocation && LOCATIONS.find((loc) => loc.id === selectedLocation?.id)?.name) ||
     destination?.name ||
@@ -810,19 +828,31 @@ function CampusMap({
           />
 
           {/* Indoor destination marker */}
-          {destination &&
-            destination.floor === currentFloor &&
-            activeIndoorNodes[destination.id] && (
-              <Marker
-                position={activeIndoorNodes[destination.id].position}
-                icon={indoorDestinationIcon}
-                zIndexOffset={900}
-              >
-                <Popup>
-                  <strong>{destination.name}</strong>
-                </Popup>
-              </Marker>
-            )}
+          {(() => {
+            if (!destination) return null;
+            const targetNodeId = destination.indoorNode || destination.id || destination.routeNode;
+            const destFloorNorm = normalizeFloor(destination.floor);
+            const isMatchingFloor =
+              String(destination.floor).toUpperCase() === String(currentFloor).toUpperCase() ||
+              String(destFloorNorm).toUpperCase() === String(currentFloor).toUpperCase();
+            const targetNode = activeIndoorNodes[targetNodeId] || activeIndoorNodes[destination.id];
+
+            if (isMatchingFloor && targetNode?.position) {
+              return (
+                <Marker
+                  key={`indoor-dest-${targetNodeId}-${currentFloor}`}
+                  position={targetNode.position}
+                  icon={indoorDestinationIcon}
+                  zIndexOffset={900}
+                >
+                  <Popup>
+                    <strong>{destination.name}</strong>
+                  </Popup>
+                </Marker>
+              );
+            }
+            return null;
+          })()}
         </>
       )}
 

@@ -43,8 +43,23 @@ import { getBuildingDisplayName } from "./utils/buildingPolygons";
 import LocationAlertCard from "./components/common/LocationAlertCard";
 import { SignalLow } from "lucide-react";
 import { routeIndoor, routeOutdoor, geofence } from "./utils/edgeFunctions";
+import OutsideCampusModal from "./components/common/OutsideCampusModal";
 
-
+// ── Floor label formatter ──────────────────────────────────────────────────────
+// Converts raw floor keys ("G", "1", "2", "3", "B1", "B2") to readable labels.
+function formatFloor(floor) {
+  if (!floor) return "Ground Floor";
+  const f = String(floor).toUpperCase().trim();
+  if (f === "G" || f === "0" || f === "GROUND") return "Ground Floor";
+  if (f === "B1" || f === "BASEMENT1" || f === "BASEMENT 1") return "Basement 1";
+  if (f === "B2" || f === "BASEMENT2" || f === "BASEMENT 2") return "Basement 2";
+  const n = parseInt(f, 10);
+  if (!isNaN(n)) {
+    const suffix = n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th";
+    return `${n}${suffix} Floor`;
+  }
+  return `${f} Floor`;
+}
 
 const STEPS = {
 
@@ -208,8 +223,11 @@ function MainApp() {
   const [currentFloor, setCurrentFloor] = useState("G");
         const [mapMode, setMapMode] = useState("OUTDOOR");
 
+  const initialUrlChecked = useRef(false);
+
   useEffect(() => {
-    if (!dbLoading && SEARCH_ITEMS && SEARCH_ITEMS.length > 0 && !destination) {
+    if (!initialUrlChecked.current && !dbLoading && SEARCH_ITEMS && SEARCH_ITEMS.length > 0) {
+      initialUrlChecked.current = true;
       const params = new URLSearchParams(window.location.search);
       const destId = params.get("dest");
       if (destId) {
@@ -227,7 +245,7 @@ function MainApp() {
         }
       }
     }
-  }, [dbLoading, SEARCH_ITEMS, locations, destination]);
+  }, [dbLoading, SEARCH_ITEMS, locations]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -440,6 +458,8 @@ function MainApp() {
   const [qrSimOpen, setQrSimOpen] = useState(false);
   const [assumedIndoorMode, setAssumedIndoorMode] = useState(false);
   const [selectedVerticalPrefix, setSelectedVerticalPrefix] = useState(null);
+  // Outside-campus preview state
+  const [outsideCampusTarget, setOutsideCampusTarget] = useState(null);
 
   // When debug mode is on, use fixed campus location; otherwise live GPS
   const locationToUse = USE_DEBUG_LOCATION
@@ -1323,9 +1343,12 @@ function MainApp() {
   };
   const handleSelectCategory = (categoryId) => {
     if (categoryId === "departments") {
-      setSheetData(bottomSheetData.departments);
+      const academicDepts = (bottomSheetData.departments || []).filter(
+        d => !d.name?.toLowerCase().includes("administration")
+      );
+      setSheetData(academicDepts);
       setSelectedDepartment(null);
-      openBottomSheet("Departments", bottomSheetData.departments);
+      openBottomSheet("Departments", academicDepts);
     } else if (categoryId === "faculty") {
       setSheetData(bottomSheetData.departments);
       setSelectedDepartment(null);
@@ -1831,22 +1854,63 @@ function MainApp() {
       setDestination(chavaraLocation);
       if (mapMode !== "INDOOR") {
         setMapMode("OUTDOOR");
-        setNavStep(STEPS.OUTDOOR_ROUTE);
+        setNavStep(STEPS.IDLE);
       } else {
-        setNavStep(STEPS.OUTDOOR_ROUTE);
+        setNavStep(STEPS.IDLE);
+      }
+      // ── Outside campus: just show destination pin, no nav card ──
+      const currentGPS = snappedLocation || fixedUserLocation || locationToUse;
+      if (!isInsideCampus(currentGPS)) {
+        setRoute([]);
+        setShowNavigationCard(false);
+        setNavStep(STEPS.IDLE);
+        const destPos = NODES["chavara"];
+        if (destPos) setMapCenter({ id: `dest-focus-${Date.now()}`, position: destPos });
+        return;
       }
       setShowNavigationCard(true);
       return;
     }
 
-    setSelectedLocation(location);
-    setDestination(location);
-    setIndoorDestination(location);
     setRoute([]);
     setIndoorRoute([]);
     setIndoorRouteNodes([]);
     setIsOutdoorNavigating(false);
     setLastNearestNode(null);
+
+    // ── OUTSIDE CAMPUS HANDLING ─────────────────────────────────────────────
+    // When the user's GPS shows they are not on campus, normal routing isn't
+    // possible (no start node available). Instead:
+    //   • Outdoor destination → just drop a red pin and center the map.
+    //   • Indoor destination  → show the preview modal, then switch to the
+    //                           matching floor plan with the destination pin only if confirmed.
+    const currentGPS = snappedLocation || fixedUserLocation || locationToUse;
+    if (!isInsideCampus(currentGPS)) {
+      setShowNavigationCard(false);
+      setNavStep(STEPS.IDLE);
+      if (isIndoorDestination(location)) {
+        // Show the indoor preview modal without switching mapMode yet
+        setOutsideCampusTarget(location);
+      } else {
+        // Outdoor destination: pin only, no route
+        setSelectedLocation(location);
+        setDestination(location);
+        setIndoorDestination(location);
+        const destPos =
+          location.position ||
+          (location.routeNode ? NODES[location.routeNode] : null) ||
+          (location.id ? NODES[location.id] : null);
+        if (destPos) {
+          setMapCenter({ id: `dest-focus-${Date.now()}`, position: destPos });
+        }
+      }
+      return;
+    }
+    // ── END OUTSIDE CAMPUS ──────────────────────────────────────────────────
+
+    setSelectedLocation(location);
+    setDestination(location);
+    setIndoorDestination(location);
 
     const shouldUseIndoorFlow =
       mapMode === "INDOOR" || scannedQR?.type === "INDOOR";
@@ -2212,6 +2276,40 @@ function MainApp() {
 
         {/* ── Indoor routing — now handled by YDCard in the overlay above ─────── */}
 
+        {/* Outside Campus Indoor Preview Modal */}
+        {outsideCampusTarget && (
+          <OutsideCampusModal
+            destination={outsideCampusTarget}
+            onViewIndoor={() => {
+              const loc = outsideCampusTarget;
+              const targetBuilding = isChavaraBuilding(loc.building || loc.id || loc.routeNode) ? "chavara" : "stmarys";
+              const targetFloor = normalizeFloor(loc.floor) || "G";
+              setOutsideCampusTarget(null);
+              setSelectedLocation(loc);
+              setDestination(loc);
+              setIndoorDestination(loc);
+              setCurrentBuilding(targetBuilding);
+              setCurrentFloor(targetFloor);
+              setMapMode("INDOOR");
+              setNavStep(STEPS.IDLE);
+              setRoute([]);
+              setIndoorRoute([]);
+              setIndoorRouteNodes([]);
+              setShowNavigationCard(false);
+              // Center the indoor map on the destination node
+              const activeNodes = targetBuilding === "chavara" ? CHAVARA_INDOOR_NODES : INDOOR_NODES;
+              const nodeId = loc.indoorNode || loc.id;
+              const node = activeNodes[nodeId];
+              if (node?.position) {
+                setMapCenter({ id: `indoor-dest-${Date.now()}`, position: node.position });
+              }
+            }}
+            onClose={() => {
+              setOutsideCampusTarget(null);
+            }}
+          />
+        )}
+
         {/* ── Building Detection Modal (on-load GPS polygon check) ─────────────── */}
         {showBuildingModal && detectedBuilding && (
           <>
@@ -2348,23 +2446,7 @@ function MainApp() {
                   Start navigation
                 </button>
 
-                {!isInsideCampus(location || snappedLocation || fixedUserLocation || locationToUse) && (
-                  <button
-                    className="secondary-action w-full"
-                    onClick={() => {
-                      const destPos = destination?.position || (destination?.routeNode ? NODES[destination.routeNode] : null) || (destination?.id ? NODES[destination.id] : null);
-                      if (destPos) {
-                        openGoogleMapsNavigation(destPos);
-                      } else {
-                        // Fallback to entrance
-                        openGoogleMapsNavigation([CAMPUS_ENTRANCE.lat, CAMPUS_ENTRANCE.lng]);
-                      }
-                    }}
-                    title="Navigate using Google Maps App"
-                  >
-                    External GPS
-                  </button>
-                )}
+
               </div>
             </NavigationCard>
           )
@@ -2463,13 +2545,13 @@ function MainApp() {
                 {isLocalIndoorDest
                   ? (
                     <>
-                      How do you want to go to floor{" "}
-                      <strong>{displayTargetFloor}</strong>?
+                      How do you want to go to the{" "}
+                      <strong>{formatFloor(displayTargetFloor)}</strong>?
                     </>
                   )
                   : (
                     <>
-                      You are on floor <strong>{currentFloor}</strong>. How do you want to reach the <strong>Ground Floor</strong> exit?
+                      You are on the <strong>{formatFloor(currentFloor)}</strong>. How do you want to reach the <strong>Ground Floor</strong> exit?
                     </>
                   )}
               </p>
@@ -2508,8 +2590,8 @@ function MainApp() {
 
               <p>
                 {isLocalIndoorDest
-                  ? <>Proceed to the <strong>{transportMode}</strong> and go to floor <strong>{displayTargetFloor}</strong>.</>
-                  : <>Proceed to the <strong>{transportMode}</strong> and go down to the <strong>Ground Floor</strong> exit.</>
+                  ? <>Proceed to the <strong>{transportMode}</strong> and go to the <strong>{formatFloor(displayTargetFloor)}</strong>.</>
+                  : <>Head to the <strong>{transportMode}</strong> and go down to the <strong>Ground Floor</strong> exit.</>
                 }
               </p>
 
@@ -2736,6 +2818,28 @@ function getStairNode(currentFloor, destinationFloor) {
 function isIndoorDestination(destination) {
   if (!destination) return false;
 
+  // Pure outdoor landmark / building markers on the outdoor map
+  if (
+    destination.id === "chavara" ||
+    destination.id === "st-marys-block" ||
+    destination.id === "entrance" ||
+    destination.id === "canteen" ||
+    destination.id === "cafe" ||
+    destination.id === "cafe1" ||
+    destination.id === "cafe-2" ||
+    destination.id === "auditorium" ||
+    destination.id === "joseph" ||
+    (destination.type === "location" && !destination.floor && !destination.indoorNode) ||
+    (destination.type === "facility" && !destination.floor && !destination.indoorNode) ||
+    (destination.type === "building" && !destination.floor && !destination.indoorNode)
+  ) {
+    return false;
+  }
+
+  if (destination.type === "room" || destination.type === "faculty" || destination.indoorNode) {
+    return true;
+  }
+
   const isStMarys =
     destination.building === "stmarys" ||
     destination.building === "St Mary's Block" ||
@@ -2745,7 +2849,9 @@ function isIndoorDestination(destination) {
     isChavaraBuilding(destination.building) ||
     destination.routeNode === "chavara";
 
-  if (isStMarys || isChavara) return true;
+  if (isStMarys || isChavara) {
+    return Boolean(destination.floor || destination.indoorNode || destination.room);
+  }
 
   const f = destination.floor ? destination.floor.toString().toUpperCase() : "";
   return f.startsWith("B2") || f.startsWith("B1") || f.startsWith("G") || /^[1-6]/.test(f);

@@ -62,6 +62,21 @@ function isToiletItem(item) {
   return TOILET_NAMES.some((t) => name.includes(t));
 }
 
+// Converts raw floor keys to readable labels
+function formatFloor(floor) {
+  if (!floor) return "Ground Floor";
+  const f = String(floor).toUpperCase().trim();
+  if (f === "G" || f === "0" || f === "GROUND") return "Ground Floor";
+  if (f === "B1") return "Basement 1";
+  if (f === "B2") return "Basement 2";
+  const n = parseInt(f, 10);
+  if (!isNaN(n)) {
+    const suffix = n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th";
+    return `${n}${suffix} Floor`;
+  }
+  return `${f} Floor`;
+}
+
 function getSearchTokens(text) {
   return (text || "")
     .toLowerCase()
@@ -222,21 +237,33 @@ function ItemIcon({ item }) {
   return <MapPin size={16} />;
 }
 
+function formatBuilding(building) {
+  if (!building) return "";
+  const b = String(building).toLowerCase().trim();
+  if (b.includes("chavara")) return "St Chavara Block";
+  if (b.includes("stmary") || b.includes("st-mary") || b.includes("st_mary")) return "St Mary's Block";
+  return building;
+}
+
 function itemMeta(item) {
   if (item.type === "faculty") {
-    const bName = (item.building || "").toLowerCase().includes("chavara")
-      ? "St Chavara Block"
-      : "St Mary's Block";
+    const bName = formatBuilding(item.building || item.routeNode);
     return `${item.designation || "Faculty"} · ${item.department || ""} (${bName})`;
   }
   if (item.type === "room") {
-    const bName = (item.building || "").toLowerCase().includes("chavara")
-      ? "St Chavara Block"
-      : "St Mary's Block";
+    const bName = formatBuilding(item.building || item.routeNode);
     const roomPart = item.roomNumber || item.id || "";
-    return `${bName} · ${roomPart ? roomPart + " · " : ""}Floor ${item.floor || ""}`;
+    return `${bName} · ${roomPart ? roomPart + " · " : ""}${formatFloor(item.floor)}`;
   }
-  return item.department || item.building || "Campus Location";
+  if (item.department) {
+    const bName = formatBuilding(item.building || item.routeNode);
+    return `${item.department}${bName ? ` · ${bName}` : ""}${item.floor ? ` · ${formatFloor(item.floor)}` : ""}`;
+  }
+  if (item.building) {
+    const bName = formatBuilding(item.building);
+    return `${bName}${item.floor ? ` · ${formatFloor(item.floor)}` : ""}`;
+  }
+  return item.kind || "Campus Location";
 }
 
 // ─── Single editable field with dropdown ─────────────────────────────────────
@@ -603,13 +630,8 @@ export default function YDCard({
       {dest && typeof document !== "undefined" && createPortal(
         <div className="navigation-card pointer-events-auto shadow-[0_-8px_30px_rgba(15,23,42,0.12)]">
           <p className="text-[14.5px] text-gray-700 leading-snug mb-3">
-            <strong>{dest.name}</strong> is in the <strong>
-              {(() => {
-                const f = String(dest.floor || "0").toLowerCase();
-                if (f === "0" || f === "ground") return "ground floor";
-                if (f.includes("floor")) return f;
-                return `${f} floor`;
-              })()}
+            <strong>{dest.name}</strong> is on the <strong>
+              {formatFloor(dest.floor)}
             </strong> of <strong>{(dest.building || "").toLowerCase().includes("chavara") ? "St Chavara Block" : "St Mary's Block"}</strong>.
           </p>
           <button

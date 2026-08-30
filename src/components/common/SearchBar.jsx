@@ -54,8 +54,31 @@ function isToiletItem(item) {
   return TOILET_NAME_TERMS.some((t) => name.includes(t));
 }
 
+// Converts raw floor keys to readable labels
+function formatFloor(floor) {
+  if (!floor) return "Ground Floor";
+  const f = String(floor).toUpperCase().trim();
+  if (f === "G" || f === "0" || f === "GROUND") return "Ground Floor";
+  if (f === "B1") return "Basement 1";
+  if (f === "B2") return "Basement 2";
+  const n = parseInt(f, 10);
+  if (!isNaN(n)) {
+    const suffix = n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th";
+    return `${n}${suffix} Floor`;
+  }
+  return `${f} Floor`;
+}
+
+function formatBuilding(building) {
+  if (!building) return "";
+  const b = String(building).toLowerCase().trim();
+  if (b.includes("chavara")) return "St Chavara Block";
+  if (b.includes("stmary") || b.includes("st-mary") || b.includes("st_mary")) return "St Mary's Block";
+  return building;
+}
+
 const DEFAULT_SUGGESTIONS = [
-  { name: "Principal's Office", type: "room", id: "N314", building: "stmarys", floor: "3" },
+  { name: "Principal's Office", type: "room", id: "N314", building: "stmarys", floor: "G" },
   { name: "Placement Cell", type: "room", id: "P_N215", building: "stmarys", floor: "2" },
   { name: "Front Office", type: "room", id: "ch_ground_office", building: "chavara", floor: "G" },
   { name: "Main Canteen", type: "location", id: "canteen" },
@@ -413,16 +436,23 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
 
   const getItemMeta = (item) => {
     if (item.type === "faculty") {
-      const bName = (item.building || "").toLowerCase().includes("chavara") ? "St Chavara Block" : "St Mary's Block";
+      const bName = formatBuilding(item.building || item.routeNode);
       return `${item.designation || "Faculty"} · ${item.department || ""} (${bName})`;
     }
     if (item.type === "room") {
-      const bName = (item.building || "").toLowerCase().includes("chavara") ? "St Chavara Block" : "St Mary's Block";
-      // Show room number/code alongside floor so code-only names are identifiable
+      const bName = formatBuilding(item.building || item.routeNode);
       const roomCode = item.id && item.id !== item.name ? ` · ${item.id}` : "";
-      return `${bName}${roomCode} · Floor ${item.floor}`;
+      return `${bName}${roomCode} · ${formatFloor(item.floor)}`;
     }
-    return item.department || item.building || "Campus Location";
+    if (item.department) {
+      const bName = formatBuilding(item.building || item.routeNode);
+      return `${item.department}${bName ? ` · ${bName}` : ""}${item.floor ? ` · ${formatFloor(item.floor)}` : ""}`;
+    }
+    if (item.building) {
+      const bName = formatBuilding(item.building);
+      return `${bName}${item.floor ? ` · ${formatFloor(item.floor)}` : ""}`;
+    }
+    return "Campus Location";
   };
 
   return (

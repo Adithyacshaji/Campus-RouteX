@@ -91,7 +91,7 @@ export const DatabaseProvider = ({ children }) => {
         stmarys[node.id] = { 
           ...staticNode, 
           ...formatted,
-          label: staticNode.label || formatted.label
+          label: (node.label !== undefined && node.label !== null) ? node.label : staticNode.label
         };
       } else {
         const staticNode = STATIC_CHAVARA_INDOOR_NODES[node.id] || {};
@@ -99,7 +99,7 @@ export const DatabaseProvider = ({ children }) => {
           ...staticNode,
           id: node.id,
           ...formatted,
-          label: staticNode.label || formatted.label
+          label: (node.label !== undefined && node.label !== null) ? node.label : staticNode.label
         };
       }
     });

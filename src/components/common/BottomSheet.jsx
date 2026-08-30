@@ -12,6 +12,32 @@ export const normalizeName = (name) => {
     .replace(/[^a-z]/g, '');
 };
 
+export const formatFloor = (floor) => {
+  if (!floor) return "Ground Floor";
+  const f = String(floor).toUpperCase().trim();
+  if (f === "G" || f === "0" || f === "GROUND" || f === "GROUND FLOOR") return "Ground Floor";
+  if (f === "B1" || f === "BASEMENT1" || f === "BASEMENT 1") return "Basement 1";
+  if (f === "B2" || f === "BASEMENT2" || f === "BASEMENT 2") return "Basement 2";
+  if (f === "F1") return "1st Floor";
+  if (f === "F2") return "2nd Floor";
+  if (f === "F3") return "3rd Floor";
+  if (f === "F4") return "4th Floor";
+  if (f === "F5") return "5th Floor";
+  const match = f.match(/\d+/);
+  if (match) {
+    const n = parseInt(match[0], 10);
+    const suffix = n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th";
+    return `${n}${suffix} Floor`;
+  }
+  return `${floor}`;
+};
+
+export const formatBuilding = (building) => {
+  const b = (building || "").toLowerCase();
+  if (b.includes("chavara")) return "St Chavara Block";
+  return "St Mary's Block";
+};
+
 export const FACULTY_PHOTOS = {
   "anaghramesh": "/Faculty Photos/BSH/Anagh Ramesh.jpg",
   "bincytj": "/Faculty Photos/BSH/Bincy T J.jpg",
@@ -25,7 +51,8 @@ export const FACULTY_PHOTOS = {
   "reshmapb": "/Faculty Photos/BSH/Reshma P B.jpg",
   "revathygkrishnan": "/Faculty Photos/BSH/Revathy G Krishnan.jpg",
   "susenjose": "/Faculty Photos/BSH/Susen Jose.jpg",
-  "vdjhon": "/Faculty Photos/BSH/V D Jhon.jpg",
+  "vdjhon": "/Faculty Photos/BSH/VD John.jpg",
+  "vdjohn": "/Faculty Photos/BSH/VD John.jpg",
   "vinayajose": "/Faculty Photos/BSH/Vinaya Jose.jpg",
   "vishnuk": "/Faculty Photos/BSH/Vishnu K.jpg",
   "abhishekpw": "/Faculty Photos/Civil/Abhishek P W.jpg",
@@ -36,18 +63,22 @@ export const FACULTY_PHOTOS = {
   "melbyjoy": "/Faculty Photos/Civil/Melby Joy.jpg",
   "neenujohnson": "/Faculty Photos/Civil/Neenu Johnson.jpg",
   "prabhashankarvp": "/Faculty Photos/Civil/Prabhashankar V P.jpg",
+  "prabhasankarvp": "/Faculty Photos/Civil/Prabhashankar V P.jpg",
   "riyajoseph": "/Faculty Photos/Civil/Riya Joseph.jpg",
   "sherjahpyousaf": "/Faculty Photos/Civil/Sherjah P Yousaf.jpg",
+  "sherjahpyusuf": "/Faculty Photos/Civil/Sherjah P Yousaf.jpg",
   "shicyns": "/Faculty Photos/Civil/Shicy N S.jpg",
   "vinithaev": "/Faculty Photos/Civil/Vinitha E V.jpg",
   "vivekkviswanath": "/Faculty Photos/Civil/Vivek K Viswanath.jpg",
   "aiswaryasm": "/Faculty Photos/CSE/Aiswarya S M.jpg",
+  "anmariya": "/Faculty Photos/CSE/Anmariya Wilson.jpg",
   "anmariyawilson": "/Faculty Photos/CSE/Anmariya Wilson.jpg",
   "annaalphy": "/Faculty Photos/CSE/Anna Alphy.jpeg",
   "athithyas": "/Faculty Photos/CSE/Athithya S.jpg",
   "bijyantony": "/Faculty Photos/CSE/Bijy Antony.jpg",
   "chaithanniats": "/Faculty Photos/CSE/Chaithannia T S.jpg",
   "dincyrarrikat": "/Faculty Photos/CSE/Dincy R Arrikat.jpg",
+  "dincyrarikkat": "/Faculty Photos/CSE/Dincy R Arrikat.jpg",
   "divyar": "/Faculty Photos/CSE/Divya R.jpeg",
   "himajose": "/Faculty Photos/CSE/Hima Jose.jpg",
   "irisjose": "/Faculty Photos/CSE/Iris Jose.jpg",
@@ -60,7 +91,8 @@ export const FACULTY_PHOTOS = {
   "monishathomas": "/Faculty Photos/CSE/Monisha Thomas.jpg",
   "neethupr": "/Faculty Photos/CSE/Neethu P R.jpg",
   "nithacvelayudhan": "/Faculty Photos/CSE/Nitha C Velayudhan.jpg",
-  "prashantkbaby": "/Faculty Photos/CSE/Prashant K Baby.jpeg",
+  "prashantkbaby": "/Faculty Photos/CSE/Prasanth K Baby.jpg",
+  "prasanthkbaby": "/Faculty Photos/CSE/Prasanth K Baby.jpg",
   "reshmakv": "/Faculty Photos/CSE/Reshma K V.jpg",
   "rinsuaravind": "/Faculty Photos/CSE/Rinsu Aravind.jpg",
   "sabiraps": "/Faculty Photos/CSE/Sabira P S.jpg",
@@ -75,7 +107,9 @@ export const FACULTY_PHOTOS = {
   "anittaantony": "/Faculty Photos/ECE/Anitta Antony.jpg",
   "carenbabu": "/Faculty Photos/ECE/Caren Babu.jpg",
   "catherinejnereveett": "/Faculty Photos/ECE/Catherine J Nereveett.jpeg",
+  "catherinejnereveettil": "/Faculty Photos/ECE/Catherine J Nereveett.jpeg",
   "dellareasavaliaveet": "/Faculty Photos/ECE/Della Reasa Valiaveet.jpg",
+  "dellareasavaliaveetil": "/Faculty Photos/ECE/Della Reasa Valiaveet.jpg",
   "krishnapriyas": "/Faculty Photos/ECE/Krishnapriya S.jpg",
   "manjuikollannur": "/Faculty Photos/ECE/Manju I Kollannur.jpg",
   "sangeethsomarajan": "/Faculty Photos/ECE/Sangeeth Somarajan.jpg",
@@ -85,13 +119,16 @@ export const FACULTY_PHOTOS = {
   "aneeshku": "/Faculty Photos/EEE/Aneesh K U.jpg",
   "anjanasomasundaran": "/Faculty Photos/EEE/Anjana Somasundaran.jpg",
   "emilinthomas": "/Faculty Photos/EEE/Emilin Thomas.jpg",
+  "emilinthomask": "/Faculty Photos/EEE/Emilin Thomas.jpg",
   "jinukt": "/Faculty Photos/EEE/Jinu K T.jpg",
   "needhuvarghese": "/Faculty Photos/EEE/Needhu Varghese.jpg",
   "nithinks": "/Faculty Photos/EEE/Nithin K S.jpg",
   "preethipi": "/Faculty Photos/EEE/Preethi P I.jpg",
+  "preethiti": "/Faculty Photos/EEE/Preethi P I.jpg",
   "rarimm": "/Faculty Photos/EEE/Rari M M.jpg",
   "thakkupeter": "/Faculty Photos/EEE/Thakku Peter.jpg",
   "vipinpadmanaban": "/Faculty Photos/EEE/Vipin padmanaban.jpg",
+  "vipinpadmanabhan": "/Faculty Photos/EEE/Vipin padmanaban.jpg",
   "vishnupm": "/Faculty Photos/EEE/Vishnu P M.jpg",
   "johnvd": "/Faculty Photos/Main/John V.D.jpg",
   "manojgeorge": "/Faculty Photos/Main/Manoj George.jpg",
@@ -99,9 +136,11 @@ export const FACULTY_PHOTOS = {
   "sijomt": "/Faculty Photos/Main/Sijo M T.jpg",
   "hingstonxavier": "/Faculty Photos/MBA/Hingston Xavier.jpeg",
   "jhonmathew": "/Faculty Photos/MBA/Jhon Mathew.jpeg",
+  "johnmathew": "/Faculty Photos/MBA/Jhon Mathew.jpeg",
   "kavyakb": "/Faculty Photos/MBA/Kavya K B.jpeg",
   "nivithapaul": "/Faculty Photos/MBA/Nivitha Paul.jpeg",
   "snehajhonp": "/Faculty Photos/MBA/Sneha Jhon P.jpeg",
+  "snehajohnp": "/Faculty Photos/MBA/Sneha Jhon P.jpeg",
   "tintababy": "/Faculty Photos/MBA/Tinta Baby.jpeg",
   "aloshjames": "/Faculty Photos/Mech/Alosh James.jpg",
   "anexkp": "/Faculty Photos/Mech/Anex K P.jpg",
@@ -112,8 +151,10 @@ export const FACULTY_PHOTOS = {
   "jackwinvincent": "/Faculty Photos/Mech/Jackwin Vincent.jpg",
   "jomonaj": "/Faculty Photos/Mech/Jomon A J.jpg",
   "joyet": "/Faculty Photos/Mech/Joy E T.jpg",
+  "nithinvk": "/Faculty Photos/Mech/Nithin V K.jpg",
   "reynoldjose": "/Faculty Photos/Mech/Reynold Jose.jpg",
-  "rojinmathew": "/Faculty Photos/Mech/Rojin Mathew.jpg",
+  "rojinmathew": "/Faculty Photos/Mech/Rojin Mathews.jpg",
+  "rojinmathews": "/Faculty Photos/Mech/Rojin Mathews.jpg",
   "roshandavid": "/Faculty Photos/Mech/Roshan David.jpg",
   "sanjeshks": "/Faculty Photos/Mech/Sanjesh K S.jpg",
   "viswanathkkaimal": "/Faculty Photos/Mech/Viswanath K Kaimal.jpg"
@@ -264,6 +305,11 @@ function BottomSheet({
                   {selectedDepartment.faculties.map((faculty, index) => {
                     const normalizedName = normalizeName(faculty.name);
                     const photoPath = faculty.image_url || FACULTY_PHOTOS[normalizedName];
+                    const facultyBuilding = formatBuilding(faculty.building || faculty.routeNode);
+                    const facultyFloor = formatFloor(faculty.floor);
+                    const facultyRoom = (faculty.indoorNode && !faculty.indoorNode.includes(" ") && faculty.indoorNode !== faculty.building)
+                      ? faculty.indoorNode
+                      : (faculty.room && !faculty.room.toLowerCase().includes("block") ? faculty.room : (faculty.indoorNode || faculty.room));
 
                     return (
                       <div className="p-4 mb-3 bg-white rounded-[20px] shadow-[0_2px_10px_rgb(0,0,0,0.05)] border border-gray-100 flex flex-col gap-1" key={index}>
@@ -287,10 +333,11 @@ function BottomSheet({
                               <User size={24} className="text-gray-400" />
                             )}
                           </div>
-                          <div className="flex flex-col flex-1">
+                          <div className="flex flex-col flex-1 min-w-0">
                             <h4 className="text-[16px] font-semibold text-gray-900 leading-tight">{faculty.name}</h4>
                             <p className="text-[14px] text-gray-600 mt-0.5">{faculty.designation}</p>
-                            <span className="text-[12px] text-gray-500 mt-0.5">Room: {faculty.room}</span>
+                            <p className="text-[13px] text-gray-500 mt-0.5">{facultyBuilding} · {facultyFloor}</p>
+                            {facultyRoom && <span className="text-[12.5px] text-gray-500 mt-0.5">Room: {facultyRoom}</span>}
                           </div>
                         </div>
                       <button className="mt-2 h-10 w-full bg-blue-50 hover:bg-blue-100 text-primary font-semibold rounded-full transition-colors text-[14px]" onClick={() => {
@@ -319,10 +366,22 @@ function BottomSheet({
               )}
 
               {/* Standard List (Departments, Buildings, Labs, Cafeteria, Library, Parking, Washrooms, Classrooms) */}
-              {title !== "Faculty" && Array.isArray(data) && data.map((item, index) => {
-                const destination = (title === "Department" || title === "Departments") 
-                  ? (item.indoorNode || item.routeNode ? item : item.faculties?.[0]) 
+              {title !== "Faculty" && Array.isArray(data) && data
+                .filter((item) => {
+                  if (title === "Department" || title === "Departments") {
+                    return !item.name?.toLowerCase().includes("administration");
+                  }
+                  return true;
+                })
+                .map((item, index) => {
+                const isDept = (title === "Department" || title === "Departments");
+                const destination = isDept
+                  ? (item.indoorNode || item.routeNode ? item : (item.faculties?.find(f => f.designation?.toLowerCase() === 'hod') || item.faculties?.[0])) 
                   : null;
+                const bldg = isDept ? formatBuilding(item.building || destination?.building || destination?.routeNode || (item.name?.toLowerCase().includes("chavara") ? "chavara" : "stmarys")) : null;
+                const flr = isDept ? formatFloor(item.floor || destination?.floor) : null;
+                const room = isDept ? ((destination?.indoorNode && !destination?.indoorNode?.includes(" ")) ? destination.indoorNode : (item.room || (destination?.room && !destination?.room?.toLowerCase().includes("block") ? destination.room : destination?.indoorNode))) : null;
+
                 return (
                   <div className="p-4 mb-3 bg-white rounded-[20px] shadow-[0_2px_10px_rgb(0,0,0,0.05)] border border-gray-100 flex flex-col gap-2" key={item.id || index}>
                     {item.image_url && (
@@ -332,11 +391,19 @@ function BottomSheet({
                     )}
                     <h4 className="text-[16px] font-semibold text-gray-900 leading-tight">{item.name || item.title}</h4>
                     {item.description && <p className="text-[13px] text-gray-600">{item.description}</p>}
-                    {(title === "Department" || title === "Departments") && <p className="text-[13px] text-gray-600">{(destination?.building === "chavara" || destination?.routeNode === "chavara") ? "St Chavara Block" : "St Mary's Block"}</p>}
-                    {(title === "Department" || title === "Departments") && <span className="text-[12px] text-gray-500">{destination?.floor ? `Floor: ${destination.floor}` : "Department office"}</span>}
-                    {item.room && <span className="text-[12px] text-gray-500">{item.room}</span>}
+                    {isDept && (
+                      <div className="flex flex-col gap-0.5 mt-0.5">
+                        <p className="text-[13.5px] font-medium text-gray-700">{bldg}</p>
+                        <p className="text-[13px] text-gray-500">{flr}</p>
+                        {room && <p className="text-[12.5px] text-gray-500">Room: {room}</p>}
+                      </div>
+                    )}
+                    {!isDept && item.building && (
+                      <p className="text-[13px] text-gray-500">{formatBuilding(item.building)} {item.floor ? `· ${formatFloor(item.floor)}` : ''}</p>
+                    )}
+                    {!isDept && item.room && <span className="text-[12px] text-gray-500">Room: {item.room}</span>}
                     <button className="mt-2 h-10 w-full bg-primary hover:bg-primary-hover text-white font-semibold rounded-full transition-colors shadow-[0_2px_8px_rgb(37,99,235,0.3)] text-[14px]" onClick={() => {
-                      if (title === "Department" || title === "Departments") {
+                      if (isDept) {
                         if (!destination) return;
                         onNavigate({
                           id: destination.indoorNode || destination.routeNode,
