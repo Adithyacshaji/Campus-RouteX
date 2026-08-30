@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import {
   ImageOverlay,
   MapContainer,
@@ -20,6 +20,7 @@ import { FLOOR_IMAGES, CHAVARA_FLOOR_IMAGES } from "../../data/floorImages";
 import { INDOOR_NODES } from "../../data/indoorNodes";
 import { findNearestIndoorNode } from "../../utils/findNearestIndoorNode";
 import { calculateHaversineDistance } from "../../utils/haversine";
+import { getDistanceToRoute } from "../../utils/distanceToRoute";
 
 
 // ─── Debug flags ──────────────────────────────────────────────────────────────
@@ -37,9 +38,9 @@ const INITIAL_OUTDOOR_MARKER_IDS = [
 
 // ─── Zoom constants ───────────────────────────────────────────────────────────
 const OUTDOOR_ZOOM = {  
-  default: 17.5,
-  min: 16.5,
-  max: 20,
+  default: 17,
+  min: 17.5,
+  max: 19.1,
   maxNative: 19,
 };
 function getIndoorZoomConfig(building) {
@@ -283,7 +284,6 @@ function makeUserIcon(heading) {
         <div class="relative w-5 h-5 bg-primary border-[3px] border-white rounded-full shadow-[0_2px_10px_rgb(37,99,235,0.5)] z-2 flex items-center justify-center">
           ${hasHeading ? `<div class="user-heading-arrow" style="transform: rotate(${heading}deg)">&#9650;</div>` : ""}
         </div>
-        <div class="absolute inset-0 m-auto w-10 h-10 rounded-full border-2 border-primary/20 animate-[gpsPulse_2.2s_ease-out_infinite] pointer-events-none"></div>
       </div>
     `,
     iconSize: [40, 40],
@@ -324,32 +324,23 @@ function filterOverlappingLabels(nodes, zoom) {
     return 0;
   });
 
-  if (zoom >= 22.5) return sorted;
-
-  // Set minimum spacing between labels depending on zoom level
-  const minDistance = zoom < 21.3 ? 0.00007 : 0.000035; 
-  const rendered = [];
-
-  return sorted.filter(([id, node]) => {
-    const isTooClose = rendered.some(rNode => {
-      const latDiff = Math.abs(node.position[0] - rNode.position[0]);
-      const lngDiff = Math.abs(node.position[1] - rNode.position[1]);
-      return latDiff < minDistance && lngDiff < minDistance;
-    });
-
-    if (isTooClose) return false;
-    rendered.push(node);
-    return true;
-  });
+  // Bypass filtering so ALL labels added by the user remain perfectly visible
+  return sorted;
 }
 
-function makeRoomLabelIcon(label, zoomLevel) {
-  // Scale across the indoor zoom range 20.75 – 24.5
-  const z = zoomLevel || 21.0;
-  // Increased font size further
-  const fontSize = Math.max(12, Math.min(22, 12 + ((z - 21.5) / (24.5 - 21.5)) * 10));
-  const py = z < 22 ? 1 : 2;
-  const px = z < 22 ? 3 : 5;
+function makeRoomLabelIcon(label, zoomLevel, nodeId) {
+  // Determine building based on node ID (Chavara usually starts with F)
+  const isChavara = nodeId && (nodeId.startsWith("F") || nodeId.includes("chavara"));
+  
+  // --- CHANGE THESE SIZES AS NEEDED ---
+  const chavaraBaseSize = 8.5;
+  const stMarysBaseSize = 8.5;
+  // ------------------------------------
+
+  // Fixed sizes regardless of zoom level
+  const fontSize = isChavara ? chavaraBaseSize : stMarysBaseSize;
+  const py = 2;
+  const px = 5;
   const iconW = Math.round(fontSize * 14); // Give it a bit more width so it doesn't wrap unnecessarily
   const iconH = Math.round(fontSize * 3);
 
@@ -492,16 +483,33 @@ function CampusMap({
   onSelectLocation,
   hasBottomCard = false,
   sheetOpen = false,
+  onEnterBuilding = null,
 }) {
   const { locations: LOCATIONS } = useDatabase();
   const [mapBearing, setMapBearing] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(OUTDOOR_ZOOM.default);
 
-  // Compute visible indoor route filtered to current floor
-  const visibleIndoorRoute = indoorRouteNodes
-    .slice(indoorRouteIndex)
-    .filter((id) => activeIndoorNodes[id]?.floor === currentFloor)
-    .map((id) => activeIndoorNodes[id].position);
+  // Compute visible indoor route segments filtered to contiguous chunks on current floor
+  const visibleIndoorSegments = [];
+  let currentSegment = [];
+  const remainingNodes = indoorRouteNodes.slice(indoorRouteIndex);
+  
+  for (const id of remainingNodes) {
+    if (activeIndoorNodes[id]?.floor === currentFloor) {
+      currentSegment.push(activeIndoorNodes[id].position);
+    } else {
+      if (currentSegment.length > 0) {
+        visibleIndoorSegments.push(currentSegment);
+        currentSegment = [];
+      }
+    }
+  }
+  if (currentSegment.length > 0) {
+    visibleIndoorSegments.push(currentSegment);
+  }
+
+  // Flatten for bounds calculation and other uses that just need points
+  const visibleIndoorRoute = visibleIndoorSegments.flat();
 
   const visibleOutdoorMarkers = LOCATIONS.filter((loc) =>
     INITIAL_OUTDOOR_MARKER_IDS.includes(loc.id)
@@ -518,27 +526,10 @@ function CampusMap({
     selectedLocation?.name ||
     null;
 
-  // Build arrow markers
-  const indoorArrows = buildArrowMarkers(visibleIndoorRoute, 2);
+  // Build arrow markers for each segment
+  const indoorArrows = visibleIndoorSegments.flatMap(segment => buildArrowMarkers(segment, 2));
 
-  // "You are here" toast — shown for 3 s when a new route appears
-  const [showYouAreHere, setShowYouAreHere] = useState(false);
-  const youAreHereTimer = useRef(null);
-  const prevRouteKey = useRef("");
-  useEffect(() => {
-    let routeKey = "";
-    if (mapMode === "INDOOR" && visibleIndoorRoute.length >= 2) {
-      routeKey = "indoor_" + visibleIndoorRoute[0].join(",") + "_" + visibleIndoorRoute[visibleIndoorRoute.length - 1].join(",");
-    } else if (mapMode === "OUTDOOR" && route.length >= 2) {
-      routeKey = "outdoor_" + route[0].join(",") + "_" + route[route.length - 1].join(",");
-    }
-
-    if (!routeKey || routeKey === prevRouteKey.current) return;
-    prevRouteKey.current = routeKey;
-    setShowYouAreHere(true);
-    clearTimeout(youAreHereTimer.current);
-    youAreHereTimer.current = setTimeout(() => setShowYouAreHere(false), 3000);
-  }, [mapMode, visibleIndoorRoute, route]);
+  // "You are here" toast completely disabled per user request
 
   return (
     <MapContainer
@@ -549,6 +540,8 @@ function CampusMap({
         mapMode === "OUTDOOR"
           ? (route.length < 2 ? CAMPUS_BOUNDS : null)
           : activeFloorImages[currentFloor]?.bounds
+            ? L.latLngBounds(activeFloorImages[currentFloor].bounds).pad(0.5)
+            : null
       }
       maxBoundsViscosity={1.0}
       minZoom={OUTDOOR_ZOOM.min}
@@ -612,7 +605,7 @@ function CampusMap({
         <>
           <TileLayer
             attribution="&copy; OpenStreetMap contributors &copy; CARTO"
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png"
+            url={`https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png?key=${import.meta.env.VITE_CARTO_API_KEY || 'cb1_2k3m_1_096928bf1a4c35a96e157888'}`}
             maxNativeZoom={OUTDOOR_ZOOM.maxNative}
             maxZoom={OUTDOOR_ZOOM.max}
             keepBuffer={4}
@@ -652,7 +645,6 @@ function CampusMap({
             initialHeading={heading}
             route={route}
             mapBearing={mapBearing}
-            showYouAreHere={showYouAreHere}
           />
 
           {/* Outdoor location dots */}
@@ -684,16 +676,8 @@ function CampusMap({
 
       {/* Building labels — always visible */}
       {BUILDINGS.map((building, index) => {
-        // Calculate font size based on zoomLevel
-        // Default font-size is 12px at zoom 17.5.
-        // zoom <= 16.5: size = 9px
-        // zoom >= 19: size = 15px
-        let fontSize = 12;
-        if (zoomLevel <= 16.5) fontSize = 9;
-        else if (zoomLevel >= 19) fontSize = 15;
-        else {
-          fontSize = 9 + ((zoomLevel - 16.5) / (19 - 16.5)) * (15 - 9);
-        }
+        // Fixed font size as per user request (no dynamic scaling on zoom)
+        const fontSize = 12;
 
         const locId = getBuildingLocationId(building.name);
         const correspondingLoc = locId ? LOCATIONS.find(l => l.id === locId) : null;
@@ -704,7 +688,7 @@ function CampusMap({
             position={building.position}
             icon={L.divIcon({
               className: `building-label ${correspondingLoc ? 'cursor-pointer' : ''}`,
-              html: `<div style="font-size: ${fontSize}px; font-weight: 600; color: #1e293b; background: rgba(255, 255, 255, 0.75); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(0, 0, 0, 0.08); text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">${building.name.replace(/\n/g, '<br/>')}</div>`,
+              html: `<div style="font-size: ${fontSize}px; font-weight: 700; color: #1e293b; background: transparent; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 2px 4px rgba(0,0,0,0.3); padding: 3px 8px; text-align: center;">${building.name.replace(/\n/g, '<br/>')}</div>`,
               iconSize: [120, 42],
               iconAnchor: [60, 21],
             })}
@@ -738,8 +722,8 @@ function CampusMap({
             }}
           />
 
-          {/* Room name labels — scale with zoom, rotate with the floor plan image */}
-          {zoomLevel >= 21.0 && filterOverlappingLabels(
+          {/* Room name labels — rotate with the floor plan image */}
+          {filterOverlappingLabels(
             Object.entries(activeIndoorNodes).filter(([id, node]) =>
               (node.floor === currentFloor || node.floor === "ALL") &&
               shouldShowLabel(id, node)
@@ -749,7 +733,7 @@ function CampusMap({
             <Marker
               key={`label-${id}`}
               position={node.labelPosition || node.position}
-              icon={makeRoomLabelIcon(node.label || id, zoomLevel)}
+              icon={makeRoomLabelIcon(node.label || id, zoomLevel, id)}
               interactive={false}
               zIndexOffset={50}
             />
@@ -773,43 +757,31 @@ function CampusMap({
               ))}
 
           {/* Indoor route polyline + arrows */}
-          {visibleIndoorRoute.length > 1 && (
+          {visibleIndoorSegments.length > 0 && (
             <>
-              {/* Outer Glow / shadow */}
-              <Polyline
-                positions={visibleIndoorRoute}
-                color="#1E3A8A"
-                weight={17}
-                opacity={0.15}
-                lineCap="round"
-                lineJoin="round"
-              />
-              <Polyline
-                positions={visibleIndoorRoute}
-                color="#1E3A8A"
-                weight={12}
-                opacity={0.3}
-                lineCap="round"
-                lineJoin="round"
-              />
-              {/* Main vibrant blue route */}
-              <Polyline
-                positions={visibleIndoorRoute}
-                color="#3B82F6"
-                weight={9}
-                opacity={1}
-                lineCap="round"
-                lineJoin="round"
-              />
-              {/* Lighter inner highlight */}
-              <Polyline
-                positions={visibleIndoorRoute}
-                color="#93C5FD"
-                weight={3.5}
-                opacity={0.9}
-                lineCap="round"
-                lineJoin="round"
-              />
+              {visibleIndoorSegments.map((segment, idx) => (
+                <Fragment key={idx}>
+                  {/* Outer Glow / shadow */}
+                  <Polyline
+                    positions={segment}
+                    color="#0F1D45"
+                    weight={8}
+                    opacity={0.3}
+                    lineCap="round"
+                    lineJoin="round"
+                  />
+                  {/* Main vibrant blue route */}
+                  <Polyline
+                    positions={segment}
+                    color="#3B82F6"
+                    weight={6}
+                    opacity={1}
+                    lineCap="round"
+                    lineJoin="round"
+                  />
+                </Fragment>
+              ))}
+              
               {/* Directional arrows */}
               {indoorArrows.map((a) => (
                 <Marker
@@ -819,44 +791,23 @@ function CampusMap({
                   interactive={false}
                 />
               ))}
-              <Marker position={visibleIndoorRoute[visibleIndoorRoute.length - 1]} icon={routeEndpointIcon} interactive={false} zIndexOffset={800} />
+              {/* Show endpoint red dot at the end of the path on the current floor */}
+              {visibleIndoorRoute.length > 0 && (
+                <Marker position={visibleIndoorRoute[visibleIndoorRoute.length - 1]} icon={routeEndpointIcon} interactive={false} zIndexOffset={800} />
+              )}
             </>
           )}
 
           {/* Indoor user marker */}
-          {indoorUserLocation &&
-            indoorUserLocation.floor === currentFloor && (
-              <Marker
-                position={indoorUserLocation.position}
-                icon={indoorUserIcon}
-                draggable={false}
-                zIndexOffset={1000}
-                eventHandlers={{
-                  dragend: (e) => {
-                    const latlng = e.target.getLatLng();
-                    const position = [latlng.lat, latlng.lng];
-                    const nearestNode = findNearestIndoorNode(
-                      position,
-                      currentFloor
-                    );
-                    setIndoorUserLocation({ position, nearestNode });
-                    setIndoorStart({
-                      name: activeIndoorNodes[nearestNode]?.label || nearestNode,
-                      nearestNode,
-                    });
-                  },
-                }}
-              >
-                <Popup>You are here</Popup>
-                {showYouAreHere && (
-                  <Tooltip permanent direction="top" offset={[0, -32]} className="yah-tooltip-container">
-                    <div className="yah-toast">
-                      <span style={{ fontSize: "18px" }}>📍</span> You are here
-                    </div>
-                  </Tooltip>
-                )}
-              </Marker>
-            )}
+          <LiveIndoorUserMarker
+            indoorUserLocation={indoorUserLocation}
+            currentFloor={currentFloor}
+            subscribeToLocation={subscribeToLocation}
+            initialHeading={heading}
+            activeIndoorNodes={activeIndoorNodes}
+            setIndoorUserLocation={setIndoorUserLocation}
+            setIndoorStart={setIndoorStart}
+          />
 
           {/* Indoor destination marker */}
           {destination &&
@@ -876,12 +827,13 @@ function CampusMap({
       )}
 
       {/* Floating Map Controls overlay */}
-      <CustomMapControls 
-        mapMode={mapMode} 
-        currentLocation={currentLocation} 
+      <CustomMapControls
+        mapMode={mapMode}
+        currentLocation={currentLocation}
         onMyLocationClick={onMyLocationClick}
         hasBottomCard={hasBottomCard}
         sheetOpen={sheetOpen}
+        onEnterBuilding={onEnterBuilding}
       />
 
       {/* Fly-to helpers */}
@@ -894,27 +846,14 @@ function CampusMap({
 // segments. Equirectangular coordinates are accurate at campus scale.
 function trimRouteFromLocation(route, location) {
   if (!location || route.length < 2) return route;
-  const latScale = 111320;
-  const lngScale = latScale * Math.cos(location.lat * Math.PI / 180);
-  const point = [location.lat, location.lng];
-  let closest = { distanceSquared: Infinity, segment: 0, point: route[0] };
-
-  for (let index = 0; index < route.length - 1; index += 1) {
-    const start = route[index];
-    const end = route[index + 1];
-    const dx = (end[1] - start[1]) * lngScale;
-    const dy = (end[0] - start[0]) * latScale;
-    const lengthSquared = dx * dx + dy * dy;
-    const t = lengthSquared ? Math.max(0, Math.min(1, (((point[1] - start[1]) * lngScale * dx) + ((point[0] - start[0]) * latScale * dy)) / lengthSquared)) : 0;
-    const projected = [start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t];
-    const distanceSquared = ((point[1] - projected[1]) * lngScale) ** 2 + ((point[0] - projected[1]) * latScale) ** 2;
-    if (distanceSquared < closest.distanceSquared) closest = { distanceSquared, segment: index, point: projected };
-  }
+  
+  const { point, distanceMeters, segmentIndex } = getDistanceToRoute(route, location);
 
   // Do not distort the route if the user is far away from it (for example a
   // poor GPS reading or an intentional detour).
-  if (closest.distanceSquared > 45 ** 2) return route;
-  return [point, closest.point, ...route.slice(closest.segment + 1)];
+  if (distanceMeters > 15) return route;
+  
+  return [point, ...route.slice(segmentIndex + 1)];
 }
 
 // ─── Helper sub-components ────────────────────────────────────────────────────
@@ -1128,9 +1067,6 @@ function MapRotationListener({ onChange }) {
 function MapZoomListener({ onChange }) {
   const map = useMap();
   useMapEvents({
-    zoom: () => {
-      onChange(map.getZoom());
-    },
     zoomend: () => {
       onChange(map.getZoom());
     }
@@ -1180,28 +1116,35 @@ function LocationMarker({ location, selectedLocation, icon, onSelect }) {
  * Behaviour:
  *  1. On the very first GPS fix, fly the outdoor map to the user's position
  *     so the blue dot is immediately visible (even at the default campus zoom).
- *  2. While isOutdoorNavigating is true, softly pan the map on every
- *     subsequent fix so the user stays centred during active navigation.
- *
- * The isNavigating ref pattern prevents stale closures inside the long-lived
- * subscribeToLocation callback.
+ *  2. While isOutdoorNavigating is true:
+ *     - Rotates the map to face the direction of travel (bearing-up mode)
+ *     - Offsets the camera 15m ahead of the user so the path ahead is visible
+ *     - Uses smooth flyTo instead of panTo for a Google Maps-like feel
+ *  3. When not navigating, map stays north-up and doesn't auto-follow.
  */
 function LocationManager({ subscribeToLocation, isOutdoorNavigating, useDebugLocation, currentLocation, mapMode }) {
   const map = useMap();
   const initializedRef = useRef(false);
   const isNavigatingRef = useRef(isOutdoorNavigating);
   const mapModeRef = useRef(mapMode);
-  const startLocationRef = useRef(null);
-  const hasMovedRef = useRef(false);
 
   // Keep refs current on every render without re-subscribing
-  useEffect(() => { 
-    isNavigatingRef.current = isOutdoorNavigating; 
+  useEffect(() => {
+    isNavigatingRef.current = isOutdoorNavigating;
     if (!isOutdoorNavigating) {
-      startLocationRef.current = null;
-      hasMovedRef.current = false;
+      // Restore north-up orientation when navigation ends
+      if (map.setBearing) {
+        map.setBearing(0, { animate: true, duration: 0.6 });
+      }
+    } else if (currentLocation && mapModeRef.current === "OUTDOOR") {
+      // Just started navigating! Fly to user immediately
+      map.flyTo(
+        [currentLocation.lat, currentLocation.lng],
+        Math.max(map.getZoom(), OUTDOOR_ZOOM.default),
+        { duration: 1.0 }
+      );
     }
-  }, [isOutdoorNavigating]);
+  }, [isOutdoorNavigating, map]); // Removed currentLocation to prevent re-firing on every location update, only on mode toggle
 
   useEffect(() => { mapModeRef.current = mapMode; }, [mapMode]);
 
@@ -1222,50 +1165,75 @@ function LocationManager({ subscribeToLocation, isOutdoorNavigating, useDebugLoc
   // For live GPS, auto-center on first fix and pan during navigation
   useEffect(() => {
     if (!subscribeToLocation || useDebugLocation) return undefined;
-    const unsubscribe = subscribeToLocation((position) => {
+    const unsubscribe = subscribeToLocation((position, meta) => {
       if (mapModeRef.current !== "OUTDOOR") return;
 
       if (!initializedRef.current) {
-        // First ever fix — fly to user so the blue dot is visible
+        // First ever fix — fly to user so the blue dot is visible immediately
         initializedRef.current = true;
         map.flyTo(
           [position.lat, position.lng],
           Math.max(map.getZoom(), OUTDOOR_ZOOM.default),
           { duration: 1.2 }
         );
-      } else if (isNavigatingRef.current) {
-        // We are navigating. Check if start position is captured.
-        if (!startLocationRef.current) {
-          startLocationRef.current = position;
-        } else if (!hasMovedRef.current) {
-          // Check if distance from start exceeds threshold of 1.5 meters (0.0015 km)
-          const dist = calculateHaversineDistance(
-            startLocationRef.current.lat,
-            startLocationRef.current.lng,
-            position.lat,
-            position.lng
-          );
-          if (dist > 0.0015) {
-            hasMovedRef.current = true;
-          }
-        }
-
-        // Active navigation — keep user centred with a gentle pan only after they start moving
-        if (hasMovedRef.current) {
-          map.panTo([position.lat, position.lng], { animate: true, duration: 0.4 });
-        }
+        return;
       }
+
+      if (!isNavigatingRef.current) return;
+
+      // As requested: movement of user do not effect the map components other than path.
+      // Automatic map panning and rotation are disabled here so that the map
+      // doesn't jump around or fight manual user panning during navigation.
+
     });
-    return unsubscribe;
-    // subscribeToLocation and useDebugLocation are stable refs — intentionally
-    // omitting them from the dep array to avoid re-subscribing on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map]);
+    return () => unsubscribe();
+  }, [subscribeToLocation, mapMode, map, useDebugLocation]);
 
   return null;
 }
 
-function LiveOutdoorFeatures({ subscribeToLocation, currentLocation, initialHeading, route, mapBearing, showYouAreHere }) {
+function LiveIndoorUserMarker({ indoorUserLocation, currentFloor, subscribeToLocation, initialHeading, activeIndoorNodes, setIndoorUserLocation, setIndoorStart }) {
+  const [liveHeading, setLiveHeading] = useState(initialHeading || 0);
+
+  useEffect(() => {
+    if (!subscribeToLocation) return undefined;
+    return subscribeToLocation((position, metadata) => {
+      if (metadata?.heading !== null && !Number.isNaN(metadata?.heading)) {
+        setLiveHeading(metadata.heading);
+      }
+    });
+  }, [subscribeToLocation]);
+
+  if (!indoorUserLocation || indoorUserLocation.floor !== currentFloor) return null;
+
+  return (
+    <Marker
+      position={indoorUserLocation.position}
+      icon={makeUserIcon(liveHeading)}
+      draggable={false}
+      zIndexOffset={1000}
+      eventHandlers={{
+        dragend: (e) => {
+          const latlng = e.target.getLatLng();
+          const position = [latlng.lat, latlng.lng];
+          const nearestNode = findNearestIndoorNode(
+            position,
+            currentFloor
+          );
+          setIndoorUserLocation({ position, nearestNode });
+          setIndoorStart({
+            name: activeIndoorNodes[nearestNode]?.label || nearestNode,
+            nearestNode,
+          });
+        },
+      }}
+    >
+      <Popup>You are here</Popup>
+    </Marker>
+  );
+}
+
+function LiveOutdoorFeatures({ subscribeToLocation, currentLocation, initialHeading, route, mapBearing }) {
   const [liveLocation, setLiveLocation] = useState(currentLocation);
   const [liveHeading, setLiveHeading] = useState(initialHeading || 0);
 
@@ -1284,6 +1252,17 @@ function LiveOutdoorFeatures({ subscribeToLocation, currentLocation, initialHead
     [route, liveLocation]
   );
   
+  const markerPos = useMemo(() => {
+    if (!liveLocation) return null;
+    if (route && route.length >= 2) {
+      const { point, distanceMeters } = getDistanceToRoute(route, liveLocation);
+      if (distanceMeters <= 15) {
+        return point;
+      }
+    }
+    return [liveLocation.lat, liveLocation.lng];
+  }, [liveLocation, route]);
+  
   const outdoorArrows = buildArrowMarkers(visibleOutdoorRoute, 15);
   const outdoorUserIconDynamic = makeUserIcon(liveHeading);
 
@@ -1292,8 +1271,8 @@ function LiveOutdoorFeatures({ subscribeToLocation, currentLocation, initialHead
       {visibleOutdoorRoute.length > 0 && (
         <>
           <Polyline positions={visibleOutdoorRoute} color="#1E3A8A" weight={17} opacity={0.15} lineCap="round" lineJoin="round" />
-          <Polyline positions={visibleOutdoorRoute} color="#1E3A8A" weight={12} opacity={0.3} lineCap="round" lineJoin="round" />
-          <Polyline positions={visibleOutdoorRoute} color="#3B82F6" weight={9} opacity={1} lineCap="round" lineJoin="round" />
+          <Polyline positions={visibleOutdoorRoute} color="#1E3A8A" weight={14} opacity={0.3} lineCap="round" lineJoin="round" />
+          <Polyline positions={visibleOutdoorRoute} color="#3B82F6" weight={10} opacity={1} lineCap="round" lineJoin="round" />
           <Polyline positions={visibleOutdoorRoute} color="#93C5FD" weight={3.5} opacity={0.9} lineCap="round" lineJoin="round" />
           {outdoorArrows.map((a) => (
             <Marker key={a.key} position={a.position} icon={makeArrowIcon(a.bearing, a.turnDiff, mapBearing)} interactive={false} />
@@ -1302,16 +1281,8 @@ function LiveOutdoorFeatures({ subscribeToLocation, currentLocation, initialHead
         </>
       )}
 
-      {liveLocation && (
-        <Marker position={[liveLocation.lat, liveLocation.lng]} icon={outdoorUserIconDynamic} zIndexOffset={1000}>
-          <Popup>You are here</Popup>
-          {showYouAreHere && (
-            <Tooltip permanent direction="top" offset={[0, -10]} className="yah-tooltip-container">
-              <div className="yah-toast">
-                <span style={{ fontSize: "18px" }}>📍</span> You are here
-              </div>
-            </Tooltip>
-          )}
+      {markerPos && (
+        <Marker position={markerPos} icon={outdoorUserIconDynamic} zIndexOffset={1000}>
         </Marker>
       )}
     </>
@@ -1321,47 +1292,100 @@ function LiveOutdoorFeatures({ subscribeToLocation, currentLocation, initialHead
 export default CampusMap;
 
 // ─── Floating Map Controls ──────────────────────────────────────────────────
-function CustomMapControls({ mapMode, currentLocation, onMyLocationClick, hasBottomCard, sheetOpen }) {
+import { Building } from "lucide-react"; // Make sure Building is imported
+
+function CustomMapControls({ mapMode, currentLocation, onMyLocationClick, hasBottomCard, sheetOpen, onEnterBuilding }) {
   const map = useMap();
 
   if (mapMode === "INDOOR") return null;
 
-  const bottomOffset = sheetOpen 
-    ? "bottom-[340px]" 
-    : hasBottomCard 
-      ? "bottom-[195px]" 
-      : "bottom-6";
+  // Compute base bottom offset in pixels (40px clears the copyright text at bottom: 5px)
+  const baseBottom = sheetOpen ? 340 : (hasBottomCard ? 195 : 40);
 
   return (
-    <div className={`absolute right-4 ${bottomOffset} flex flex-col gap-3 z-1400 pointer-events-none transition-all duration-300`}>
-      <button
-        onClick={(e) => {
-          e.preventDefault();
-          if (onMyLocationClick) {
-            const hasLocation = onMyLocationClick();
-            if (hasLocation && currentLocation) {
+    <div 
+      className="absolute right-4 z-1400 pointer-events-none transition-all duration-300 flex flex-col items-center gap-4"
+      style={{ bottom: `${baseBottom}px` }}
+    >
+      {/* My Location and Zoom grouped together */}
+      <div className="flex flex-col gap-4">
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            const doRecenter = () => {
               map.flyTo([currentLocation.lat, currentLocation.lng], Math.max(map.getZoom(), OUTDOOR_ZOOM.default), { duration: 0.8 });
-            }
-          } else if (currentLocation) {
-            map.flyTo([currentLocation.lat, currentLocation.lng], Math.max(map.getZoom(), OUTDOOR_ZOOM.default), { duration: 0.8 });
-          }
-        }}
-        className="pointer-events-auto bg-white/95 backdrop-blur-md w-11 h-11 rounded-full shadow-[0_4px_16px_rgb(0,0,0,0.1)] border border-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
-        title="My Location"
-      >
-        <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-700 relative flex items-center justify-center"><div className="w-1.5 h-1.5 bg-gray-700 rounded-full"></div></div>
-      </button>
+              if (map.setBearing) {
+                map.setBearing(0, { animate: true, duration: 0.8 });
+              }
+            };
 
-      <div className="pointer-events-auto flex flex-col bg-white/95 backdrop-blur-md rounded-[20px] shadow-[0_4px_16px_rgb(0,0,0,0.1)] border border-gray-100 overflow-hidden mt-1">
-        <button
-          onClick={(e) => { e.preventDefault(); map.zoomIn(); }}
-          className="w-11 h-10.5 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-gray-700 border-b border-gray-100 text-[22px] font-light"
-        >+</button>
-        <button
-          onClick={(e) => { e.preventDefault(); map.zoomOut(); }}
-          className="w-11 h-10.5 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-gray-700 text-[26px] font-light pb-1"
-        >−</button>
+            if (onMyLocationClick) {
+              const hasLocation = onMyLocationClick();
+              if (hasLocation && currentLocation) {
+                doRecenter();
+              }
+            } else if (currentLocation) {
+              doRecenter();
+            }
+          }}
+          className="pointer-events-auto bg-white/95 backdrop-blur-md w-11 h-11 rounded-full shadow-[0_4px_16px_rgb(0,0,0,0.1)] border border-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
+          title="My Location"
+        >
+          <div className="w-4.5 h-4.5 rounded-full border-2 border-gray-700 relative flex items-center justify-center"><div className="w-1.5 h-1.5 bg-gray-700 rounded-full"></div></div>
+        </button>
+
+        <div className="pointer-events-auto flex flex-col bg-white/95 backdrop-blur-md rounded-[20px] shadow-[0_4px_16px_rgb(0,0,0,0.1)] border border-gray-100 overflow-hidden">
+          <button
+            onClick={(e) => { e.preventDefault(); map.zoomIn(); }}
+            className="w-11 h-10.5 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-gray-700 border-b border-gray-100 text-[22px] font-light"
+          >+</button>
+          <button
+            onClick={(e) => { e.preventDefault(); map.zoomOut(); }}
+            className="w-11 h-10.5 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-gray-700 text-[26px] font-light pb-1"
+          >−</button>
+        </div>
       </div>
+
+      {/* Indoor Button at the bottom */}
+      {onEnterBuilding && (
+        <button
+          id="outdoor-enter-btn"
+          aria-label="Enter nearest building"
+          title="Enter nearest building"
+          onClick={onEnterBuilding}
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: "50%",
+            border: "none",
+            cursor: "pointer",
+            background: "rgba(255,255,255,0.97)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.08)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 2,
+            transition: "transform 0.15s, box-shadow 0.15s",
+            pointerEvents: "auto",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.08)";
+            e.currentTarget.style.boxShadow = "0 6px 24px rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.1)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.08)";
+          }}
+        >
+          <Building size={20} color="#059669" strokeWidth={2.2} />
+          <span style={{ fontSize: 9, fontWeight: 700, color: "#059669", letterSpacing: 0.2 }}>
+            Indoor
+          </span>
+        </button>
+      )}
     </div>
   );
 }

@@ -34,11 +34,7 @@ export default function LoadingScreen({ isLoading, gpsStatus, onExplore }) {
 
   useEffect(() => {
     if (!isLoading) {
-      setIsFadingOut(true);
-      const fadeTimer = setTimeout(() => {
-        setShouldRender(false);
-      }, 1000);
-      return () => clearTimeout(fadeTimer);
+      setShouldRender(false);
     }
   }, [isLoading]);
 
@@ -81,11 +77,8 @@ export default function LoadingScreen({ isLoading, gpsStatus, onExplore }) {
           <button 
             className="minimal-skip-btn" 
             onClick={() => {
-              setIsFadingOut(true);
-              setTimeout(() => {
-                setShouldRender(false);
-                if (onExplore) onExplore();
-              }, 1000);
+              setShouldRender(false);
+              if (onExplore) onExplore();
             }}
           >
             Skip to map

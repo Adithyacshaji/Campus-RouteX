@@ -13,109 +13,110 @@ export const normalizeName = (name) => {
 };
 
 export const FACULTY_PHOTOS = {
-  "anaghramesh": "/Faculty photos/BSH/Anagh Ramesh.jpg",
-  "bincytj": "/Faculty photos/BSH/Bincy T J.jpg",
-  "dianamathew": "/Faculty photos/BSH/Diana Mathew.jpg",
-  "hingstonxavier": "/Faculty photos/MBA/Hingston Xavier.png",
-  "keerthanakr": "/Faculty photos/BSH/Keerthana K R.jpg",
-  "midhuelizabeth": "/Faculty photos/BSH/Midhu Elizabeth.jpg",
-  "neethuk": "/Faculty photos/BSH/Neethu K.jpg",
-  "petcyanniemm": "/Faculty photos/BSH/Petcy Annie M M.jpg",
-  "reenacg": "/Faculty photos/BSH/Reena C G.jpg",
-  "reshmapb": "/Faculty photos/BSH/Reshma PB.jpg",
-  "revathygkrishnan": "/Faculty photos/BSH/Revathy G Krishnan.jpg",
-  "susenjose": "/Faculty photos/BSH/Susen Jose.jpg",
-  "vdjhon": "/Faculty photos/BSH/VD Jhon.jpg",
-  "vinayajose": "/Faculty photos/BSH/Vinaya Jose.jpg",
-  "vishnuk": "/Faculty photos/BSH/Vishnu K.jpg",
-  "abhishekpw": "/Faculty photos/Civil/Abhishek P W.jpg",
-  "angithasasidharan": "/Faculty photos/Civil/Angitha Sasidharan.jpg",
-  "bindurajan": "/Faculty photos/Civil/Bindu Rajan.jpg",
-  "godwinpa": "/Faculty photos/Civil/Godwin P A.jpg",
-  "jinojohn": "/Faculty photos/Civil/Jino John.jpg",
-  "melbyjoy": "/Faculty photos/Civil/Melby Joy.jpg",
-  "neenujohnson": "/Faculty photos/Civil/Neenu Johnson.jpg",
-  "prabhashankarvp": "/Faculty photos/Civil/Prabhashankar V P.jpg",
-  "riyajoseph": "/Faculty photos/Civil/Riya Joseph.jpg",
-  "sherjahpyousaf": "/Faculty photos/Civil/Sherjah P Yousaf.jpg",
-  "shicyns": "/Faculty photos/Civil/Shicy N S.jpg",
-  "vinithaev": "/Faculty photos/Civil/Vinitha E V.jpg",
-  "vivekkviswanath": "/Faculty photos/Civil/Vivek K Viswanath.jpg",
-  "aiswaryasm": "/Faculty photos/CSE/Aiswarya SM.jpg",
-  "anmariyawilson": "/Faculty photos/CSE/Anmariya  Wilson.jpg",
-  "annaalphy": "/Faculty photos/CSE/Anna Alphy.png",
-  "athithyas": "/Faculty photos/CSE/Athithya S.jpg",
-  "bijyantony": "/Faculty photos/CSE/Bijy Antony.jpg",
-  "chaithanniats": "/Faculty photos/CSE/Chaithannia T S.jpg",
-  "dincyrarrikat": "/Faculty photos/CSE/Dincy R Arrikat.jpg",
-  "divyar": "/Faculty photos/CSE/Divya R.png",
-  "himajose": "/Faculty photos/CSE/Hima Jose.jpg",
-  "irisjose": "/Faculty photos/CSE/Iris Jose.jpg",
-  "jasminejolly": "/Faculty photos/CSE/Jasmine Jolly.png",
-  "jibytc": "/Faculty photos/CSE/Jiby T C.jpg",
-  "jincydenny": "/Faculty photos/CSE/Jincy Denny.jpg",
-  "krishnapriyaps": "/Faculty photos/CSE/Krishnapriya P S.jpg",
-  "mariyaseby": "/Faculty photos/CSE/Mariya Seby.jpg",
-  "merrylmaryforbin": "/Faculty photos/CSE/Merryl Mary Forbin.jpg",
-  "monishathomas": "/Faculty photos/CSE/Monisha Thomas.jpg",
-  "neethupr": "/Faculty photos/CSE/Neethu P R.jpg",
-  "nithacvelayudhan": "/Faculty photos/CSE/Nitha C Velayudhan.jpg",
-  "prashantkbaby": "/Faculty photos/CSE/Prashant K Baby.png",
-  "reshmakv": "/Faculty photos/CSE/Reshma K V.jpg",
-  "rinsuaravind": "/Faculty photos/CSE/Rinsu Aravind.jpg",
-  "sabiraps": "/Faculty photos/CSE/Sabira P S.jpg",
-  "salishplouis": "/Faculty photos/CSE/Salish P Louis.jpg",
-  "simmifrancis": "/Faculty photos/CSE/Simmi Francis.jpg",
-  "soorajtr": "/Faculty photos/CSE/Sooraj T R.jpg",
-  "sreethaes": "/Faculty photos/CSE/Sreetha E S.jpg",
-  "sunijose": "/Faculty photos/CSE/Suni Jose.jpg",
-  "vaishakckrishnan": "/Faculty photos/CSE/Vaishak C Krishnan.jpg",
-  "vineethakv": "/Faculty photos/CSE/Vineetha K V.jpg",
-  "ajeeshs": "/Faculty photos/ECE/Ajeesh S.png",
-  "anittaantony": "/Faculty photos/ECE/Anitta Antony.jpg",
-  "carenbabu": "/Faculty photos/ECE/Caren Babu.jpg",
-  "catherinejnereveett": "/Faculty photos/ECE/Catherine J Nereveett.jpg",
-  "dellareasavaliaveet": "/Faculty photos/ECE/Della Reasa Valiaveet.jpg",
-  "krishnapriyas": "/Faculty photos/ECE/Krishnapriya S.jpg",
-  "manjuikollannur": "/Faculty photos/ECE/Manju I Kollannur.jpg",
-  "sangeethsomarajan": "/Faculty photos/ECE/Sangeeth Somarajan.jpg",
-  "sibinlalms": "/Faculty photos/ECE/Sibinlal M S.jpg",
-  "swathypm": "/Faculty photos/ECE/Swathy P M.jpg",
-  "vinojpg": "/Faculty photos/ECE/Vinoj P G.jpg",
-  "aneeshku": "/Faculty photos/EEE/Aneesh K U.jpg",
-  "anjanasomasundaran": "/Faculty photos/EEE/Anjana Somasundaran.jpg",
-  "emilinthomas": "/Faculty photos/EEE/Emilin Thomas.jpg",
-  "jinukt": "/Faculty photos/EEE/Jinu K T.jpg",
-  "needhuvarghese": "/Faculty photos/EEE/Needhu Varghese.jpg",
-  "nithinks": "/Faculty photos/Mech/Nithin K S.jpg",
-  "preethipi": "/Faculty photos/EEE/Preethi P I.jpg",
-  "rarimm": "/Faculty photos/EEE/Rari M M.jpg",
-  "thakkupeter": "/Faculty photos/EEE/Thakku Peter.jpg",
-  "vipinpadmanaban": "/Faculty photos/EEE/Vipin padmanaban.jpg",
-  "vishnupm": "/Faculty photos/EEE/Vishnu P M.jpg",
-  "johnvd": "/Faculty photos/Main/John V.D.jpg",
-  "manojgeorge": "/Faculty photos/Mech/Manoj George.jpg",
-  "sajeevjohn": "/Faculty photos/Main/Sajeev John.jpg",
-  "sijomt": "/Faculty photos/Main/Sijo M T.jpg",
-  "jhonmathew": "/Faculty photos/MBA/Jhon Mathew.png",
-  "kavyakb": "/Faculty photos/MBA/Kavya K B.png",
-  "nivithapaul": "/Faculty photos/MBA/Nivitha Paul.png",
-  "snehajhonp": "/Faculty photos/MBA/Sneha Jhon P.png",
-  "tintababy": "/Faculty photos/MBA/Tinta Baby.png",
-  "aloshjames": "/Faculty photos/Mech/Alosh James.jpg",
-  "anexkp": "/Faculty photos/Mech/Anex K P.jpg",
-  "aswathypsajeev": "/Faculty photos/Mech/Aswathy P Sajeev.jpeg",
-  "balakrishnancr": "/Faculty photos/Mech/Balakrishnan C R.jpg",
-  "bejoyjose": "/Faculty photos/Mech/Bejoy Jose.jpg",
-  "donydominic": "/Faculty photos/Mech/Dony Dominic.jpg",
-  "jackwinvincent": "/Faculty photos/Mech/Jackwin Vincent.jpg",
-  "jomonaj": "/Faculty photos/Mech/Jomon A J.jpg",
-  "joyet": "/Faculty photos/Mech/Joy E T.jpg",
-  "reynoldjose": "/Faculty photos/Mech/Reynold Jose.jpg",
-  "rojinmathew": "/Faculty photos/Mech/Rojin Mathew.jpg",
-  "roshandavid": "/Faculty photos/Mech/Roshan David.jpg",
-  "sanjeshks": "/Faculty photos/Mech/Sanjesh K S.jpg",
-  "viswanathkkaimal": "/Faculty photos/Mech/Viswanath K Kaimal.jpg"
+  "anaghramesh": "/Faculty Photos/BSH/Anagh Ramesh.jpg",
+  "bincytj": "/Faculty Photos/BSH/Bincy T J.jpg",
+  "dianamathew": "/Faculty Photos/BSH/Diana Mathew.jpg",
+  "hingstonxavier": "/Faculty Photos/BSH/Hingston Xavier.jpeg",
+  "keerthanakr": "/Faculty Photos/BSH/Keerthana K R.jpg",
+  "midhuelizabeth": "/Faculty Photos/BSH/Midhu Elizabeth.jpg",
+  "neethuk": "/Faculty Photos/BSH/Neethu K.jpg",
+  "petcyanniemm": "/Faculty Photos/BSH/Petcy Annie M M.jpg",
+  "reenacg": "/Faculty Photos/BSH/Reena C G.jpg",
+  "reshmapb": "/Faculty Photos/BSH/Reshma P B.jpg",
+  "revathygkrishnan": "/Faculty Photos/BSH/Revathy G Krishnan.jpg",
+  "susenjose": "/Faculty Photos/BSH/Susen Jose.jpg",
+  "vdjhon": "/Faculty Photos/BSH/V D Jhon.jpg",
+  "vinayajose": "/Faculty Photos/BSH/Vinaya Jose.jpg",
+  "vishnuk": "/Faculty Photos/BSH/Vishnu K.jpg",
+  "abhishekpw": "/Faculty Photos/Civil/Abhishek P W.jpg",
+  "angithasasidharan": "/Faculty Photos/Civil/Angitha Sasidharan.jpg",
+  "bindurajan": "/Faculty Photos/Civil/Bindu Rajan.jpg",
+  "godwinpa": "/Faculty Photos/Civil/Godwin P A.jpg",
+  "jinojohn": "/Faculty Photos/Civil/Jino John.jpg",
+  "melbyjoy": "/Faculty Photos/Civil/Melby Joy.jpg",
+  "neenujohnson": "/Faculty Photos/Civil/Neenu Johnson.jpg",
+  "prabhashankarvp": "/Faculty Photos/Civil/Prabhashankar V P.jpg",
+  "riyajoseph": "/Faculty Photos/Civil/Riya Joseph.jpg",
+  "sherjahpyousaf": "/Faculty Photos/Civil/Sherjah P Yousaf.jpg",
+  "shicyns": "/Faculty Photos/Civil/Shicy N S.jpg",
+  "vinithaev": "/Faculty Photos/Civil/Vinitha E V.jpg",
+  "vivekkviswanath": "/Faculty Photos/Civil/Vivek K Viswanath.jpg",
+  "aiswaryasm": "/Faculty Photos/CSE/Aiswarya S M.jpg",
+  "anmariyawilson": "/Faculty Photos/CSE/Anmariya Wilson.jpg",
+  "annaalphy": "/Faculty Photos/CSE/Anna Alphy.jpeg",
+  "athithyas": "/Faculty Photos/CSE/Athithya S.jpg",
+  "bijyantony": "/Faculty Photos/CSE/Bijy Antony.jpg",
+  "chaithanniats": "/Faculty Photos/CSE/Chaithannia T S.jpg",
+  "dincyrarrikat": "/Faculty Photos/CSE/Dincy R Arrikat.jpg",
+  "divyar": "/Faculty Photos/CSE/Divya R.jpeg",
+  "himajose": "/Faculty Photos/CSE/Hima Jose.jpg",
+  "irisjose": "/Faculty Photos/CSE/Iris Jose.jpg",
+  "jasminejolly": "/Faculty Photos/CSE/Jasmine Jolly.jpeg",
+  "jibytc": "/Faculty Photos/CSE/Jiby T C.jpg",
+  "jincydenny": "/Faculty Photos/CSE/Jincy Denny.jpg",
+  "krishnapriyaps": "/Faculty Photos/CSE/Krishnapriya P S.jpg",
+  "mariyaseby": "/Faculty Photos/CSE/Mariya Seby.jpg",
+  "merrylmaryforbin": "/Faculty Photos/CSE/Merryl Mary Forbin.jpg",
+  "monishathomas": "/Faculty Photos/CSE/Monisha Thomas.jpg",
+  "neethupr": "/Faculty Photos/CSE/Neethu P R.jpg",
+  "nithacvelayudhan": "/Faculty Photos/CSE/Nitha C Velayudhan.jpg",
+  "prashantkbaby": "/Faculty Photos/CSE/Prashant K Baby.jpeg",
+  "reshmakv": "/Faculty Photos/CSE/Reshma K V.jpg",
+  "rinsuaravind": "/Faculty Photos/CSE/Rinsu Aravind.jpg",
+  "sabiraps": "/Faculty Photos/CSE/Sabira P S.jpg",
+  "salishplouis": "/Faculty Photos/CSE/Salish P Louis.jpg",
+  "simmifrancis": "/Faculty Photos/CSE/Simmi Francis.jpg",
+  "soorajtr": "/Faculty Photos/CSE/Sooraj T R.jpg",
+  "sreethaes": "/Faculty Photos/CSE/Sreetha E S.jpg",
+  "sunijose": "/Faculty Photos/CSE/Suni Jose.jpg",
+  "vaishakckrishnan": "/Faculty Photos/CSE/Vaishak C Krishnan.jpg",
+  "vineethakv": "/Faculty Photos/CSE/Vineetha K V.jpg",
+  "ajeeshs": "/Faculty Photos/ECE/Ajeesh S.jpeg",
+  "anittaantony": "/Faculty Photos/ECE/Anitta Antony.jpg",
+  "carenbabu": "/Faculty Photos/ECE/Caren Babu.jpg",
+  "catherinejnereveett": "/Faculty Photos/ECE/Catherine J Nereveett.jpeg",
+  "dellareasavaliaveet": "/Faculty Photos/ECE/Della Reasa Valiaveet.jpg",
+  "krishnapriyas": "/Faculty Photos/ECE/Krishnapriya S.jpg",
+  "manjuikollannur": "/Faculty Photos/ECE/Manju I Kollannur.jpg",
+  "sangeethsomarajan": "/Faculty Photos/ECE/Sangeeth Somarajan.jpg",
+  "sibinlalms": "/Faculty Photos/ECE/Sibinlal M S.jpg",
+  "swathypm": "/Faculty Photos/ECE/Swathy P M.jpg",
+  "vinojpg": "/Faculty Photos/ECE/Vinoj P G.jpg",
+  "aneeshku": "/Faculty Photos/EEE/Aneesh K U.jpg",
+  "anjanasomasundaran": "/Faculty Photos/EEE/Anjana Somasundaran.jpg",
+  "emilinthomas": "/Faculty Photos/EEE/Emilin Thomas.jpg",
+  "jinukt": "/Faculty Photos/EEE/Jinu K T.jpg",
+  "needhuvarghese": "/Faculty Photos/EEE/Needhu Varghese.jpg",
+  "nithinks": "/Faculty Photos/EEE/Nithin K S.jpg",
+  "preethipi": "/Faculty Photos/EEE/Preethi P I.jpg",
+  "rarimm": "/Faculty Photos/EEE/Rari M M.jpg",
+  "thakkupeter": "/Faculty Photos/EEE/Thakku Peter.jpg",
+  "vipinpadmanaban": "/Faculty Photos/EEE/Vipin padmanaban.jpg",
+  "vishnupm": "/Faculty Photos/EEE/Vishnu P M.jpg",
+  "johnvd": "/Faculty Photos/Main/John V.D.jpg",
+  "manojgeorge": "/Faculty Photos/Main/Manoj George.jpg",
+  "sajeevjohn": "/Faculty Photos/Main/Sajeev John.jpg",
+  "sijomt": "/Faculty Photos/Main/Sijo M T.jpg",
+  "hingstonxavier": "/Faculty Photos/MBA/Hingston Xavier.jpeg",
+  "jhonmathew": "/Faculty Photos/MBA/Jhon Mathew.jpeg",
+  "kavyakb": "/Faculty Photos/MBA/Kavya K B.jpeg",
+  "nivithapaul": "/Faculty Photos/MBA/Nivitha Paul.jpeg",
+  "snehajhonp": "/Faculty Photos/MBA/Sneha Jhon P.jpeg",
+  "tintababy": "/Faculty Photos/MBA/Tinta Baby.jpeg",
+  "aloshjames": "/Faculty Photos/Mech/Alosh James.jpg",
+  "anexkp": "/Faculty Photos/Mech/Anex K P.jpg",
+  "aswathypsajeev": "/Faculty Photos/Mech/Aswathy P Sajeev.jpg",
+  "balakrishnancr": "/Faculty Photos/Mech/Balakrishnan C R.jpg",
+  "bejoyjose": "/Faculty Photos/Mech/Bejoy Jose.jpg",
+  "donydominic": "/Faculty Photos/Mech/Dony Dominic.jpg",
+  "jackwinvincent": "/Faculty Photos/Mech/Jackwin Vincent.jpg",
+  "jomonaj": "/Faculty Photos/Mech/Jomon A J.jpg",
+  "joyet": "/Faculty Photos/Mech/Joy E T.jpg",
+  "reynoldjose": "/Faculty Photos/Mech/Reynold Jose.jpg",
+  "rojinmathew": "/Faculty Photos/Mech/Rojin Mathew.jpg",
+  "roshandavid": "/Faculty Photos/Mech/Roshan David.jpg",
+  "sanjeshks": "/Faculty Photos/Mech/Sanjesh K S.jpg",
+  "viswanathkkaimal": "/Faculty Photos/Mech/Viswanath K Kaimal.jpg"
 };
 
 const getIcon = (title) => {
@@ -221,7 +222,7 @@ function BottomSheet({
 
   return (
     <>
-    <Sheet isOpen={open} onClose={onClose} snapPoints={[200, 500, 0]}>
+    <Sheet isOpen={open} onClose={onClose}>
       <Sheet.Container className="rounded-t-[28px]! shadow-[0_-8px_40px_rgb(0,0,0,0.12)]!">
         <Sheet.Header />
 
@@ -237,8 +238,12 @@ function BottomSheet({
               {Array.isArray(data) && title === "Faculty" && !selectedDepartment && data.map((dept) => (
                 <div key={dept.id} className="flex items-center justify-between p-4 mb-3 bg-white rounded-[20px] shadow-[0_2px_10px_rgb(0,0,0,0.05)] border border-gray-100 cursor-pointer hover:shadow-[0_4px_16px_rgb(0,0,0,0.08)] transition-all" onClick={() => setSelectedDepartment(dept)}>
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-blue-50 text-primary flex items-center justify-center shrink-0">
-                      <School size={24} />
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 overflow-hidden ${dept.image_url ? 'border border-gray-200' : 'bg-blue-50 text-primary'}`}>
+                      {dept.image_url ? (
+                        <img src={dept.image_url} alt={dept.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <School size={24} />
+                      )}
                     </div>
                     <div>
                       <h4 className="text-[16px] font-semibold text-gray-900 leading-tight mb-1">{dept.name}</h4>
@@ -258,7 +263,7 @@ function BottomSheet({
                   <h3 className="text-[18px] font-bold mb-4">{selectedDepartment.name}</h3>
                   {selectedDepartment.faculties.map((faculty, index) => {
                     const normalizedName = normalizeName(faculty.name);
-                    const photoPath = FACULTY_PHOTOS[normalizedName];
+                    const photoPath = faculty.image_url || FACULTY_PHOTOS[normalizedName];
 
                     return (
                       <div className="p-4 mb-3 bg-white rounded-[20px] shadow-[0_2px_10px_rgb(0,0,0,0.05)] border border-gray-100 flex flex-col gap-1" key={index}>
@@ -320,6 +325,11 @@ function BottomSheet({
                   : null;
                 return (
                   <div className="p-4 mb-3 bg-white rounded-[20px] shadow-[0_2px_10px_rgb(0,0,0,0.05)] border border-gray-100 flex flex-col gap-2" key={item.id || index}>
+                    {item.image_url && (
+                      <div className="w-full h-32 rounded-xl overflow-hidden mb-2">
+                        <img src={item.image_url} alt={item.name || item.title} className="w-full h-full object-cover" />
+                      </div>
+                    )}
                     <h4 className="text-[16px] font-semibold text-gray-900 leading-tight">{item.name || item.title}</h4>
                     {item.description && <p className="text-[13px] text-gray-600">{item.description}</p>}
                     {(title === "Department" || title === "Departments") && <p className="text-[13px] text-gray-600">{(destination?.building === "chavara" || destination?.routeNode === "chavara") ? "St Chavara Block" : "St Mary's Block"}</p>}
@@ -335,6 +345,7 @@ function BottomSheet({
                           category: "department",
                           department: item.name,
                           floor: destination.floor,
+                          room: destination.room,
                           building: destination.building,
                           location: destination.building,
                           routeNode: destination.routeNode,

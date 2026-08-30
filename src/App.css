@@ -284,7 +284,7 @@ body,
 /* ── Building Detection Modal ─────────────────────────────────────────────── */
 .navigation-card.building-modal {
   /* Override the default bottom-anchored style to center it */
-  position: absolute;
+  position: fixed;
   top: 50%;
   left: 50%;
   bottom: auto;
@@ -296,7 +296,7 @@ body,
   text-align: center;
   padding: 28px 24px 24px;
   z-index: 10000;
-  animation: buildingModalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: buildingModalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .navigation-card.building-modal::before {
@@ -1165,4 +1165,40 @@ body,
 
 .floor-image-overlay-transition {
   animation: fadeInFloor 0.35s ease-out forwards;
+}
+
+/* ── GPS accuracy badge ─────────────────────────────────────────────────────── */
+/* Only rendered when accuracy > 80m. Very subtle — does not alarm the user. */
+.gps-accuracy-badge {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(15, 15, 15, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 20px;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+  animation: fadeInDown 0.25s ease;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Spinner used inside LocationAlertCard */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }

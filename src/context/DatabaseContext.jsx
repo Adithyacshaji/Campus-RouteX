@@ -37,6 +37,7 @@ export const DatabaseProvider = ({ children }) => {
   const [chavaraIndoorEdges, setChavaraIndoorEdges] = useState(STATIC_CHAVARA_INDOOR_EDGES);
   const [qrLocations, setQrLocations] = useState(STATIC_QR_LOCATIONS);
   const [bottomSheetData, setBottomSheetData] = useState(STATIC_BOTTOM_SHEET_DATA);
+  const [dbRooms, setDbRooms] = useState([]);
 
   // Re-fetch individual tables to guarantee alignment with realtime updates
   const fetchLocations = async () => {
@@ -81,7 +82,8 @@ export const DatabaseProvider = ({ children }) => {
       const formatted = {
         floor: node.floor,
         position: [node.lat, node.lng],
-        ...(node.label ? { label: node.label } : {})
+        ...(node.label ? { label: node.label } : {}),
+        ...(node.label_lat != null && node.label_lng != null ? { labelPosition: [node.label_lat, node.label_lng] } : {})
       };
       
       if (node.building === 'stmarys') {
@@ -102,6 +104,19 @@ export const DatabaseProvider = ({ children }) => {
       }
     });
     
+    // Add any static nodes that are NOT in the database
+    Object.keys(STATIC_INDOOR_NODES).forEach(id => {
+      if (!stmarys[id]) {
+        stmarys[id] = { id, ...STATIC_INDOOR_NODES[id] };
+      }
+    });
+    
+    Object.keys(STATIC_CHAVARA_INDOOR_NODES).forEach(id => {
+      if (!chavara[id]) {
+        chavara[id] = { id, ...STATIC_CHAVARA_INDOOR_NODES[id] };
+      }
+    });
+    
     setIndoorNodes(stmarys);
     setChavaraIndoorNodes(chavara);
   };
@@ -116,10 +131,11 @@ export const DatabaseProvider = ({ children }) => {
     
     data.forEach(edge => {
       const pair = [edge.source, edge.target];
-      if (edge.building === 'stmarys') {
-        stmarys.push(pair);
-      } else {
+      const b = (edge.building || "").toLowerCase();
+      if (b.includes('chavara')) {
         chavara.push(pair);
+      } else {
+        stmarys.push(pair);
       }
     });
     
@@ -140,6 +156,14 @@ export const DatabaseProvider = ({ children }) => {
       ...(qr.floor ? { floor: qr.floor } : {}),
       ...(qr.building ? { building: qr.building } : {})
     })));
+  };
+
+
+  const fetchRooms = async () => {
+    if (!isSupabaseConfigured) return;
+    const { data, error } = await supabase.from('rooms').select('*');
+    if (error) throw error;
+    setDbRooms(data || []);
   };
 
   const fetchBottomSheetData = async () => {
@@ -196,7 +220,8 @@ export const DatabaseProvider = ({ children }) => {
         fetchIndoorNodes(),
         fetchIndoorEdges(),
         fetchQrLocations(),
-        fetchBottomSheetData()
+        fetchBottomSheetData(),
+        fetchRooms()
       ]);
       setUsingFallback(false);
     } catch (err) {
@@ -233,10 +258,12 @@ export const DatabaseProvider = ({ children }) => {
         fetchQrLocations().catch(console.error);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, () => {
-        fetchBottomSheetData().catch(console.error);
+        fetchBottomSheetData(),
+        fetchRooms().catch(console.error);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'faculties' }, () => {
-        fetchBottomSheetData().catch(console.error);
+        fetchBottomSheetData(),
+        fetchRooms().catch(console.error);
       })
       .subscribe();
 
@@ -249,39 +276,54 @@ export const DatabaseProvider = ({ children }) => {
   const searchItems = useMemo(() => {
     const roomItems = [];
 
-    Object.entries(FLOORS).forEach(([floor, data]) => {
-      data.rooms.forEach((room) => {
-        const roomId = typeof room === "string" ? room : room.id;
-        const roomName = typeof room === "string" ? room : room.name;
-
+    if (dbRooms.length > 0) {
+      dbRooms.forEach(room => {
         roomItems.push({
-          id: roomId,
-          name: roomName,
+          id: room.room_id,
+          name: room.name,
           type: "room",
-          floor,
-          routeNode: data.entrance,
-          building: "St Mary's Block",
+          floor: room.floor,
+          routeNode: room.route_node,
+          building: room.building,
+          ...(room.indoor_node ? { indoorNode: room.indoor_node } : {})
         });
       });
-    });
+    } else {
+      // Fallback if DB is empty or loading
+      Object.entries(FLOORS).forEach(([floor, data]) => {
+        data.rooms.forEach((room) => {
+          const roomId = typeof room === "string" ? room : room.id;
+          const roomName = typeof room === "string" ? room : room.name;
 
-    Object.entries(CHAVARA_FLOORS).forEach(([floor, data]) => {
-      data.rooms.forEach((room) => {
-        const roomId = typeof room === "string" ? room : room.id;
-        const roomName = typeof room === "string" ? room : room.name;
-        const numericId = roomId.replace(/\D/g, "");
-
-        roomItems.push({
-          id: roomId,
-          name: roomName,
-          type: "room",
-          floor,
-          routeNode: "chavara",
-          building: "chavara",
-          indoorNode: "F" + numericId,
+          roomItems.push({
+            id: roomId,
+            name: roomName,
+            type: "room",
+            floor,
+            routeNode: data.entrance,
+            building: "St Mary's Block",
+          });
         });
       });
-    });
+
+      Object.entries(CHAVARA_FLOORS).forEach(([floor, data]) => {
+        data.rooms.forEach((room) => {
+          const roomId = typeof room === "string" ? room : room.id;
+          const roomName = typeof room === "string" ? room : room.name;
+          const numericId = roomId.replace(/\D/g, "");
+
+          roomItems.push({
+            id: roomId,
+            name: roomName,
+            type: "room",
+            floor,
+            routeNode: "chavara",
+            building: "chavara",
+            indoorNode: "F" + numericId,
+          });
+        });
+      });
+    }
 
     const facultyItems = [];
     bottomSheetData.departments.forEach((department) => {
@@ -307,7 +349,7 @@ export const DatabaseProvider = ({ children }) => {
       ...roomItems,
       ...facultyItems,
     ];
-  }, [locations, bottomSheetData]);
+  }, [locations, bottomSheetData, dbRooms]);
 
   return (
     <DatabaseContext.Provider

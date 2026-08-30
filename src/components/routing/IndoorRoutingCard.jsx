@@ -159,7 +159,7 @@ export default function IndoorRoutingCard({ onRoute, onOutdoorNavigation, initia
   const updateDestination = (text) => { setDestinationText(text); setDestination(null); };
 
   return (
-    <section className="absolute top-0 left-0 right-0 z-[2000] pointer-events-none p-3" aria-label="Indoor route planner">
+    <section className="absolute top-0 left-0 right-0 z-2000 pointer-events-none p-3" aria-label="Indoor route planner">
       <div className="relative bg-white/95 backdrop-blur-xl rounded-[20px] shadow-[0_12px_40px_rgb(0,0,0,0.15)] border border-gray-100 p-3 pointer-events-auto max-w-[520px] mx-auto animate-[slideUp_0.4s_cubic-bezier(0.16,1,0.3,1)]">
         <div className="flex gap-3 items-center">
           <div className="relative flex-1 flex flex-col gap-2">

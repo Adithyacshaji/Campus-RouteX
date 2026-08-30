@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, Link, useLocation } from "react-router-dom";
-import { LogOut, Building, Users, Menu, X } from "lucide-react";
+import { LogOut, Building, Users, Menu, X, MapPin } from "lucide-react";
 import { supabase } from "../utils/supabaseClient";
 
 import DepartmentManager from "../components/admin/DepartmentManager";
 import FacultyManager from "../components/admin/FacultyManager";
+import MapNodesManager from "../components/admin/MapNodesManager";
+import RoomsManager from "../components/admin/RoomsManager";
 
-export default function AdminDashboard() {
+export default function ControlPanel() {
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
@@ -103,6 +105,30 @@ export default function AdminDashboard() {
             <Users size={20} className={location.pathname.includes("/faculties") ? "text-white" : "text-slate-400 group-hover:text-blue-600 transition-colors"} />
             <span className="font-medium">Faculties & Staff</span>
           </Link>
+          
+          <Link
+            to="/admin/dashboard/nodes"
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 group ${
+              location.pathname.includes("/nodes")
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+            }`}
+          >
+            <MapPin size={20} className={location.pathname.includes("/nodes") ? "text-white" : "text-slate-400 group-hover:text-blue-600 transition-colors"} />
+            <span className="font-medium">Map Nodes</span>
+          </Link>
+          
+          <Link
+            to="/admin/dashboard/rooms"
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 group ${
+              location.pathname.includes("/rooms")
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+            }`}
+          >
+            <Building size={20} className={location.pathname.includes("/rooms") ? "text-white" : "text-slate-400 group-hover:text-blue-600 transition-colors"} />
+            <span className="font-medium">Rooms</span>
+          </Link>
         </nav>
         
         <div className="p-5 border-t border-slate-100/50 bg-slate-50/30">
@@ -138,6 +164,8 @@ export default function AdminDashboard() {
             <Routes>
               <Route path="/" element={<DepartmentManager />} />
               <Route path="/faculties" element={<FacultyManager />} />
+              <Route path="/nodes" element={<MapNodesManager />} />
+              <Route path="/rooms" element={<RoomsManager />} />
             </Routes>
           </div>
         </div>

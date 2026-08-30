@@ -1,3 +1,5 @@
+import { label } from "motion/react-client";
+
 export const INDOOR_NODES = {
   // Ground Floor
   entrance_G: {
@@ -18,64 +20,89 @@ export const INDOOR_NODES = {
   },
   N320: {
     floor: "G",
+    position: [10.357891186371115, 76.21293037450602],
+  },
+N320: {
+    floor: "G",
     position: [10.357891186371115,76.21293037450602],
+    //label: "N320",
+    labelPosition:[10.357878, 76.212930],
   },
 
   N301: {
     floor: "G",
     position: [10.357863, 76.212954],
-    label: "N301",
+    // label: "N301",
     labelPosition:[10.357860, 76.212966],
   },
 
   N302: {
     floor: "G",
     position: [10.35788920017353, 76.21295649558306],
+    // label: "N302",
+    labelPosition:[10.357889, 76.212965],
   },
   N303: {
     floor: "G",
     position: [10.357915293189846, 76.21295401032846],
+    label: "Joint Director\n(Administration)",
+    labelPosition:[10.357918, 76.212964],
   },
   N304: {
     floor: "G",
-    label: "Washrooms",
+    label: "Girls \nToilet",
     position: [10.357926, 76.212976],
+    //label: "N304",
+    labelPosition:[10.357918, 76.212983],
   },
   N305: {
     floor: "G",
     position: [10.357933745028102, 76.212984226732],
+    //label: "N305",
+    labelPosition:[10.357943, 76.212984],
   },
   N306: {
     floor: "G",
     position: [10.357933745028102, 76.21296613173682],
+    //label: "N306",
+    labelPosition:[10.357942, 76.212970],
   },
   N307: {
     floor: "G",
     position: [10.357933085596448, 76.21296045099],
+    label: "Joint Director \n(Finance)",
+    labelPosition:[10.357942, 76.212958],
   },
   N308: {
     floor: "G",
     position: [10.357932428245679, 76.21292953587552],
+    //label: "N308",
+    labelPosition:[10.357942, 76.212935],
   },
   N311: {
     floor: "G",
     position: [10.357935063891409, 76.21289107101606],
+    //label: "N311",
+    labelPosition:[10.357942, 76.212902],
   },
   N312: {
     floor: "G",
     position: [10.357934734175595, 76.212887],
+    //label: "N312",
+    labelPosition:[10.357942, 76.212884],
   },
-  // N313: {
-  //   floor: "G",
-  //   position: [10.357924842700687, 76.21289274647859],
-  // },
-  N314: {
+
+N314: {
     floor: "G",
     position: [10.357919567247292, 76.21289643249612],
+    //label: "N314",
+    labelPosition:[10.357910, 76.212897],
   },
   N319: {
     floor: "G",
     position: [10.357868541600597, 76.2129073877988],
+    //label: "N319",
+    labelPosition:[10.357878, 76.212896],
   },
   stairsB_G: {
     floor: "G",
@@ -87,7 +114,7 @@ export const INDOOR_NODES = {
   },
   co_2_G: {
     floor: "G",
-    position: [10.357929441245853,76.212887],
+    position: [10.357929441245853, 76.212887],
   },
   co_3_G: {
     floor: "G",
@@ -95,7 +122,7 @@ export const INDOOR_NODES = {
   },
   co_4_G: {
     floor: "G",
-    position: [10.357929446846072,  76.21292953587552],
+    position: [10.357929446846072, 76.21292953587552],
   },
   co_5_G: {
     floor: "G",
@@ -107,7 +134,7 @@ export const INDOOR_NODES = {
   },
   co_7_G: {
     floor: "G",
-    position: [10.357929446846072,76.212976],
+    position: [10.357929446846072, 76.212976],
   },
   co_8_G: {
     floor: "G",
@@ -119,66 +146,70 @@ export const INDOOR_NODES = {
   },
   co_10_G: {
     floor: "G",
-    position: [10.357891186371115,  76.21291276326548],
+    position: [10.357891186371115, 76.21291276326548],
   },
   co_11_G: {
     floor: "G",
-    position:[10.357868541600597, 76.212913],
+    position: [10.357868541600597, 76.212913],
   },
   co_12_G: {
     floor: "G",
-    position:[10.357849, 76.212913],
+    position: [10.357849, 76.212913],
   },
-   co_13_G: {
+  co_13_G: {
     floor: "G",
-    position:[10.357849, 76.21293168514968],
+    position: [10.357849, 76.21293168514968],
   },
-   co_14_G: {
+  co_14_G: {
     floor: "G",
-    position:[10.357849,76.212945],
+    position: [10.357849, 76.212945],
   },
   co_15_G: {
     floor: "G",
-    position:[10.357863,76.212948],
+    position: [10.357863, 76.212948],
   },
   co_16_G: {
     floor: "G",
-    position:[10.35788920017353,76.212948],
+    position: [10.35788920017353, 76.212948],
   },
   co_17_G: {
     floor: "G",
-    position:[10.357891186371115,76.212948],
+    position: [10.357891186371115, 76.212948],
   },
   co_18_G: {
     floor: "G",
-    position:[10.357915293189846,76.212948],
+    position: [10.357915293189846, 76.212948],
   },
   co_19_G: {
     floor: "G",
-    position:[10.357929441245853,76.21291276326548],
+    position: [10.357929441245853, 76.21291276326548],
   },
   co_20_G: {
     floor: "G",
-    position:[10.357929441245853,76.212948],
+    position: [10.357929441245853, 76.212948],
   },
   // 
 
   //B2
   entrance_B2: {
     floor: "B2",
-    position:[10.357928, 76.212864],
+    position: [10.357928, 76.212864],
   },
   N106: {
     floor: "B2",
     position: [10.357925, 76.212893],
+    //label: "N106",
+    labelPosition: [10.357906, 76.212890],
   },
   N101: {
     floor: "B2",
     position: [10.357931, 76.212895],
+    // label: "N101",
+    labelPosition: [10.357942, 76.212880],
   },
   stairsB_B2: {
     floor: "B2",
-    position:[10.357916, 76.212868],
+    position: [10.357916, 76.212868],
   },
   co_1_B2: {
     floor: "B2",
@@ -186,7 +217,7 @@ export const INDOOR_NODES = {
   },
   co_2_B2: {
     floor: "B2",
-    position:[10.357928, 76.212893],
+    position: [10.357928, 76.212893],
   },
   co_3_B2: {
     floor: "B2",
@@ -202,7 +233,7 @@ export const INDOOR_NODES = {
   },
   co_6_B2: {
     floor: "B2",
-    position: [10.357928,  76.212981],
+    position: [10.357928, 76.212981],
   },
   lift_B2: {
     floor: "B2",
@@ -212,21 +243,30 @@ export const INDOOR_NODES = {
     floor: "B2",
     label: "Seminar Hall",
     position: [10.357931, 76.212913],
+    //label: "N102",
+    labelPosition:[10.357942, 76.212914],
   },
-  
+
   N104: {
     floor: "B2",
     position: [10.357925, 76.212981],
+    //label: "N104",
+    labelPosition: [10.357919, 76.212986],
   },
-   N105: {
+  N105: {
     floor: "B2",
-    position: [10.357931,  76.212981],
+    position: [10.355946, 76.212502],
+    //label: "N105",
+    labelPosition: [10.355946, 76.212502],
   },
   N103: {
     floor: "B2",
-    label: "Christ Hall",
+    label: "Boy's Toilet",
     position: [10.357933, 76.212932],
+    labelPosition: [10.357942, 76.212985],
   },
+
+  //b1
   // ── Special nodes ──
   entrance_B1: {
     floor: "B1",
@@ -244,7 +284,7 @@ export const INDOOR_NODES = {
     floor: "B1",
     kind: "stairs",
     label: "Stairs B",
-    position:[10.357920, 76.212885],
+    position: [10.357920, 76.212885],
   },
   lift_B1: {
     floor: "B1",
@@ -256,28 +296,34 @@ export const INDOOR_NODES = {
     floor: "B1",
     label: "Programming Lab",
     position: [10.357840439342194, 76.21293328863179],
+    //label: "N201",
+    labelPosition: [10.357832, 76.212932]
   },
-  CSQ:{
-    floor: "B1",
-    label: "CS Dept",
-    position: [10.357897, 76.212934],
-  },
+
   N202: {
     floor: "B1",
     position: [10.357851648124164, 76.21295875566203],
+    //label: "N202",
+    labelPosition: [10.357851, 76.212970],
   },
   N203: {
     floor: "B1",
     position: [10.357881318427463, 76.21295875566203],
+    //label: "N203",
+    labelPosition: [10.357872, 76.212970],
   },
   N204: {
     floor: "B1",
     position: [10.35789714258808, 76.21295909075455],
+    //label: "N204",
+    labelPosition: [10.357893, 76.212970],
   },
-   N205: {
+  N205: {
     floor: "B1",
     label: "Software Lab",
     position: [10.357846, 76.212909],
+    //label: "N205",
+    labelPosition: [10.357838, 76.212903],
   },
   stairsC_B1: {
     floor: "B1",
@@ -288,46 +334,58 @@ export const INDOOR_NODES = {
   N206: {
     floor: "B1",
     position: [10.357918, 76.212959],
+    //label: "N206",
+    labelPosition: [10.357912, 76.212969],
   },
   N207: {
     floor: "B1",
     position: [10.357930768926714, 76.21298589815481],
+    //label: "N207",
+    labelPosition: [10.357938, 76.212989],
   },
   N208: {
     floor: "B1",
     position: [10.357929, 76.212969],
+    //label: "N208",
+    labelPosition: [10.357938, 76.212974],
   },
   N209: {
     floor: "B1",
     position: [10.357929, 76.2129616],
+    //label: "N209",
+    labelPosition: [10.357938, 76.212954],
   },
   N210: {
     floor: "B1",
-    position:[10.357929, 76.2129402],
+    position: [10.357929, 76.2129402],
+    //label: "N210",
+    labelPosition: [10.357938, 76.212932],
   },
   N211: {
     floor: "B1",
     position: [10.357929, 76.212919],
+    //label: "N211",
+    labelPosition: [10.357938, 76.212911],
   },
   N212: {
     floor: "B1",
     position: [10.357929, 76.212897],
+    //label: "N212",
+    labelPosition: [10.357938, 76.212889],
   },
-  // N213: {
-  //   floor: "B1",
-  //   position: [10.357922569545700, 76.21289947621212],
-  // },
+
   N214: {
     floor: "B1",
     position: [10.357904, 76.212909],
+    //label: "N214",
+    labelPosition: [10.357900, 76.212898],
   },
-  // N215: {
-  //   floor: "B1",
-  //   position: [10.357893000000000, 76.21289800000000],
-  // },
+
   N216: {
     floor: "B1",
-    position:[10.357859, 76.212910],
+    position: [10.357859, 76.212910],
+    label: "Dept of ECE",  
+    labelPosition: [10.357865, 76.212900],
   },
 
   // ── Corridor / junction nodes ──
@@ -357,27 +415,27 @@ export const INDOOR_NODES = {
   },
   co_7_B1: {
     floor: "B1",
-    position:[10.357925,  76.21298589815481],
+    position: [10.357925, 76.21298589815481],
   },
   co_8_B1: {
     floor: "B1",
-    position:[10.357918, 76.212915],
+    position: [10.357918, 76.212915],
   },
   co_9_B1: {
     floor: "B1",
-    position: [10.357904,  76.212915],
+    position: [10.357904, 76.212915],
   },
   co_10_B1: {
     floor: "B1",
-    position: [10.357859,  76.212915],
+    position: [10.357859, 76.212915],
   },
-   co_11_B1: {
+  co_11_B1: {
     floor: "B1",
-    position: [10.357851973658198,  76.212915],
+    position: [10.357851973658198, 76.212915],
   },
-   co_12_B1: {
+  co_12_B1: {
     floor: "B1",
-    position: [10.357846,  76.212915],
+    position: [10.357846, 76.212915],
   },
   co_13_B1: {
     floor: "B1",
@@ -405,13 +463,13 @@ export const INDOOR_NODES = {
   },
   co_19_B1: {
     floor: "B1",
-    position: [10.357925,  76.212915],
+    position: [10.357925, 76.212915],
   },
   co_20_B1: {
     floor: "B1",
     position: [10.357925, 76.2129533],
   },
-co_21_B1: {
+  co_21_B1: {
     floor: "B1",
     position: [10.357885, 76.212915],
   },
@@ -446,90 +504,107 @@ co_21_B1: {
   // Rooms
   N400: {
     floor: "1",
-    label: "Mech Dept",
+    label: "Dept of \nMech",
     position: [10.357861, 76.212901],
+    labelPosition: [10.357864, 76.212886],
   },
 
   N401: {
     floor: "1",
-    label: "EEE Dept",
+    label: "Dept of \nEEE",
     position: [10.357911, 76.212900],
+    labelPosition: [10.357900, 76.212887],
   },
 
   N402: {
     floor: "1",
     position: [10.357930, 76.212884],
+    labelPosition: [10.357942, 76.212877],
   },
 
   N403: {
     floor: "1",
     position: [10.357931, 76.212907],
+    labelPosition: [10.357942, 76.212898],
   },
 
   N404: {
     floor: "1",
     position: [10.357929, 76.212930],
+    labelPosition: [10.357942, 76.212921],
   },
 
   N405: {
     floor: "1",
     position: [10.357929, 76.212953],
+    labelPosition: [10.357942, 76.212944],
   },
 
   N406: {
     floor: "1",
     position: [10.357930, 76.212961],
+    labelPosition: [10.357942, 76.212965],
   },
 
   N407: {
     floor: "1",
+    label: "Sick \nRoom",
     position: [10.357920, 76.212953],
+    labelPosition: [10.357912, 76.212963],
   },
 
   N408: {
     floor: "1",
     position: [10.357893, 76.212954],
+    labelPosition: [10.357892, 76.212964],
   },
 
   N409: {
     floor: "1",
-    position:[10.357877, 76.212954],
+    position: [10.357877, 76.212954],
+    labelPosition: [10.357870, 76.212965],
   },
 
   N410: {
     floor: "1",
     position: [10.357850, 76.212954],
+    labelPosition: [10.357848, 76.212965],
   },
   N411: {
     floor: "1",
-    label: "Civil Dept",
+    label: "Dept of \nCivil",
     position: [10.357848, 76.212906],
+    labelPosition: [10.357837, 76.212895],
   },
 
   N412: {
     floor: "1",
+    label: "Girl's\nToilet",
     position: [10.357922, 76.212981],
+    labelPosition: [10.357913, 76.212984],
   },
 
   N413: {
     floor: "1",
-    position:[10.357930,76.212981],
+    label: "Boy's\nToilet",
+    position: [10.357930, 76.212981],
+    labelPosition: [10.357942, 76.212984],
   },
 
   // Corridor nodes
   co_1_1: {
     floor: "1",
-    position:[10.357926, 76.212871],
+    position: [10.357926, 76.212871],
   },
 
   co_2_1: {
     floor: "1",
-    position:[10.357926,76.212884],
+    position: [10.357926, 76.212884],
   },
 
   co_3_1: {
     floor: "1",
-    position: [10.357926,  76.212907],
+    position: [10.357926, 76.212907],
   },
 
   co_4_1: {
@@ -539,12 +614,12 @@ co_21_B1: {
 
   co_5_1: {
     floor: "1",
-    position: [10.357911,  76.212907],
+    position: [10.357911, 76.212907],
   },
 
   co_6_1: {
     floor: "1",
-    position: [10.357861,  76.212907],
+    position: [10.357861, 76.212907],
   },
 
   co_7_1: {
@@ -554,7 +629,7 @@ co_21_B1: {
 
   co_8_1: {
     floor: "1",
-    position:[10.357855, 76.212912],
+    position: [10.357855, 76.212912],
   },
   co_9_1: {
     floor: "1",
@@ -562,53 +637,53 @@ co_21_B1: {
   },
   co_10_1: {
     floor: "1",
-    position:[10.357842,76.212912],
+    position: [10.357842, 76.212912],
   },
   co_11_1: {
     floor: "1",
-    position:[10.357842,76.212927],
+    position: [10.357842, 76.212927],
   },
   co_12_1: {
     floor: "1",
-    position:[10.357842,76.212947],
+    position: [10.357842, 76.212947],
   },
   co_13_1: {
     floor: "1",
-    position:[10.35785,76.212947],
+    position: [10.35785, 76.212947],
   },
   co_14_1: {
     floor: "1",
-    position:[10.357877,76.212947],
+    position: [10.357877, 76.212947],
   },
   co_15_1: {
     floor: "1",
-    position:[10.357893,76.212947],
+    position: [10.357893, 76.212947],
   },
   co_16_1: {
     floor: "1",
-    position:[10.35792,76.212947],
+    position: [10.35792, 76.212947],
   },
   co_17_1: {
     floor: "1",
-    position:[10.357926,76.21293],
+    position: [10.357926, 76.21293],
   },
   co_18_1: {
     floor: "1",
-    position:[10.357926,76.212947],
+    position: [10.357926, 76.212947],
   },
   co_19_1: {
     floor: "1",
-    position:[10.357926, 76.212953],
+    position: [10.357926, 76.212953],
   },
   co_20_1: {
     floor: "1",
-    position:[10.357926,76.212961],
+    position: [10.357926, 76.212961],
   },
   co_21_1: {
     floor: "1",
-    position:[10.357926,76.212981],
+    position: [10.357926, 76.212981],
   },
-// 
+  // 
 
   // 2nd Floor
 
@@ -626,83 +701,102 @@ co_21_B1: {
     floor: "2",
     position: [10.357922, 76.212907],
   },
-
+  //Rooms
   N501: {
     floor: "2",
-    label: "MBA Library",
-    position:[10.357858, 76.212912],
+    label: "MBA \nLibrary",
+    labelPosition: [10.357846, 76.212904],
+    position: [10.357858, 76.212912],
   },
 
   N502: {
     floor: "2",
-    label: "MBA Dept",
+    label: "Dept of \nMBA",
+    labelPosition: [10.357874, 76.212894],
     position: [10.357873, 76.212905],
   },
 
   N503: {
     floor: "2",
-    label: "CS Lab",
-    position:[10.357915, 76.212905],
+    label: "CS \nLab",
+    labelPosition: [10.357906, 76.212894],
+    position: [10.357915, 76.212905],
   },
 
   N504: {
     floor: "2",
+    label: "Dept of \nMath",
+    labelPosition: [10.357941, 76.212885],
     position: [10.357935, 76.212891],
   },
 
   N505: {
     floor: "2",
     position: [10.357934684915113, 76.21291397414768],
+    labelPosition: [10.357942, 76.212906],
   },
 
   N506: {
     floor: "2",
     position: [10.357933, 76.212936],
+    labelPosition: [10.357942, 76.212927],
   },
 
   N507: {
     floor: "2",
+    label: "Classroom",
     position: [10.357932, 76.212958],
+    labelPosition: [10.357942, 76.212949],
   },
 
   N508: {
     floor: "2",
     position: [10.357932, 76.212966],
+    labelPosition: [10.357942, 76.212971],
   },
 
   N509: {
     floor: "2",
-    position:[10.357932, 76.212983],
+    label: "Boy's \nToilet",
+    position: [10.357932, 76.212991],
+    labelPosition: [10.357940, 76.212987],
   },
 
   N511: {
     floor: "2",
-    position: [10.357922,76.212983],
+    label: "Girl's \nToilet",
+    position: [10.357922, 76.212983],
+    labelPosition: [10.357917, 76.212982],
   },
 
   N512: {
     floor: "2",
+    label: "Sick \nRoom",
     position: [10.357923, 76.212955],
+    labelPosition: [10.357917, 76.212962],
   },
 
   N513: {
     floor: "2",
     position: [10.357900, 76.212955],
+    labelPosition: [10.357899, 76.212967],
   },
 
   N514: {
     floor: "2",
     position: [10.357886, 76.212955],
+    labelPosition: [10.357878, 76.212966],
   },
 
   N515: {
     floor: "2",
     position: [10.357858, 76.212955],
+    labelPosition: [10.357857, 76.212966],
   },
 
   co_1_2: {
     floor: "2",
-    position: [10.357928,76.2128803],
+    position: [10.357928, 76.2128803],
   },
 
   co_2_2: {
@@ -717,7 +811,7 @@ co_21_B1: {
 
   co_4_2: {
     floor: "2",
-    position: [10.357928,76.21291397],
+    position: [10.357928, 76.21291397],
   },
 
   co_5_2: {
@@ -727,17 +821,17 @@ co_21_B1: {
 
   co_6_2: {
     floor: "2",
-    position: [10.357873,76.21291017],
+    position: [10.357873, 76.21291017],
   },
 
   co_7_2: {
     floor: "2",
-    position:[10.357865,76.21291017],
+    position: [10.357865, 76.21291017],
   },
 
   co_8_2: {
     floor: "2",
-    position:[10.357865,76.21291620],
+    position: [10.357865, 76.21291620],
   },
 
   co_9_2: {
@@ -764,33 +858,33 @@ co_21_B1: {
     floor: "2",
     position: [10.3579, 76.212949],
   },
-   co_15_2: {
+  co_15_2: {
     floor: "2",
     position: [10.357923, 76.212949],
   },
-   co_16_2: {
+  co_16_2: {
     floor: "2",
     position: [10.357928, 76.212936],
   },
-   co_17_2: {
+  co_17_2: {
     floor: "2",
-    position: [10.357928,76.212949],
+    position: [10.357928, 76.212949],
   },
   co_18_2: {
     floor: "2",
-    position: [10.357928,76.212958],
+    position: [10.357928, 76.212958],
   },
   co_19_2: {
     floor: "2",
-    position: [10.357928,76.212966],
+    position: [10.357928, 76.212966],
   },
   co_20_2: {
     floor: "2",
-    position: [10.357928,76.212983],
+    position: [10.357928, 76.212983],
   },
   co_21_2: {
     floor: "2",
-    position: [10.357915,76.21291017],
+    position: [10.357915, 76.21291017],
   },
   // 
 };

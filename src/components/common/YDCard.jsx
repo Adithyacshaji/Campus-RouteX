@@ -74,61 +74,98 @@ function normalizeSpaceless(text) {
   return (text || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-// ─── Outdoor search logic (mirrors SearchBar useMemo) ─────────────────────────
-function scoreOutdoor(item, query, isIndoorMode, currentFloor) {
-  const qTrimmed = query.trim().toLowerCase();
-  if (!qTrimmed) return 0;
-
-  const qTokens = getSearchTokens(qTrimmed);
-  const qSpaceless = normalizeSpaceless(qTrimmed);
-
-  const expandedQTokens = new Set(qTokens);
-  qTokens.forEach((t) => {
-    if (ALIASES[t]) {
-      ALIASES[t].forEach((alias) => {
-        getSearchTokens(alias).forEach((at) => expandedQTokens.add(at));
-      });
+// Levenshtein distance for typo tolerance
+function getEditDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
     }
-  });
-  const finalQTokens = Array.from(expandedQTokens);
+  }
+  return matrix[b.length][a.length];
+}
 
-  // Toilet smart filter
-  const isToiletQuery = qTokens.some((t) => TOILET_TERMS.has(t));
-  if (isToiletQuery && isIndoorMode && isToiletItem(item)) {
-    if (item.floor && item.floor !== currentFloor) return -1; // hard suppress
+// ─── Search logic (mirrors SearchBar optimizations) ───────────────────────────
+function buildOptimizedItems(items) {
+  return items.map((item) => {
+    const name = item.name || "";
+    const nameLower = name.toLowerCase();
+    const dept = (item.department || "").toLowerCase();
+    const desig = (item.designation || "").toLowerCase();
+    const bldg = (item.building || "").toLowerCase();
+    const floor = (item.floor || "").toString().toLowerCase();
+    const room = (item.room || "").toString().toLowerCase();
+    const type = (item.type || "").toLowerCase();
+    
+    const fullText = [nameLower, dept, desig, bldg, floor, room, type].join(" ");
+
+    return {
+      item,
+      nameLower,
+      nameSpaceless: normalizeSpaceless(nameLower),
+      itemId: (item.id || "").toString().toLowerCase(),
+      itemIdSpaceless: normalizeSpaceless((item.id || "").toString()),
+      indoorNodeSpaceless: normalizeSpaceless((item.indoorNode || "").toString()),
+      dept,
+      desig,
+      nameWords: getSearchTokens(nameLower),
+      itemTokens: getSearchTokens(fullText),
+      isToilet: isToiletItem(item)
+    };
+  });
+}
+
+function scoreOptimizedItem(meta, qTrimmed, qSpaceless, finalQTokens, currentFloor, applyToiletFilter) {
+  if (applyToiletFilter && meta.isToilet) {
+    if (meta.item.floor && String(meta.item.floor) !== String(currentFloor)) return 0;
   }
 
-  const name = item.name || "";
-  const nameLower = name.toLowerCase();
-  const nameSpaceless = normalizeSpaceless(nameLower);
-  const itemId = (item.id || "").toString().toLowerCase();
-  const itemIdSpaceless = normalizeSpaceless(itemId);
-  const dept = (item.department || "").toLowerCase();
-  const desig = (item.designation || "").toLowerCase();
-  const bldg = (item.building || "").toLowerCase();
-  const floor = (item.floor || "").toString().toLowerCase();
-  const room = (item.room || "").toString().toLowerCase();
-  const type = (item.type || "").toLowerCase();
-  const nameWords = getSearchTokens(nameLower);
-
   let score = 0;
-  if (nameLower === qTrimmed || itemId === qTrimmed || itemIdSpaceless === qSpaceless) score += 1000;
-  else if (nameLower.startsWith(qTrimmed) || itemIdSpaceless.startsWith(qSpaceless)) score += 800;
-  else if (nameWords.some((w) => w.startsWith(qTrimmed))) score += 750;
-  else if (qSpaceless && (nameSpaceless.startsWith(qSpaceless) || nameSpaceless.includes(qSpaceless))) score += 600;
-  else if (nameLower.includes(qTrimmed)) score += 450;
-  else if (dept.startsWith(qTrimmed) || dept.includes(" " + qTrimmed)) score += 300;
-  else if (desig.startsWith(qTrimmed)) score += 250;
+  if (meta.nameLower === qTrimmed || meta.itemId === qTrimmed || meta.itemIdSpaceless === qSpaceless) score += 1000;
+  else if (meta.nameLower.startsWith(qTrimmed) || meta.itemIdSpaceless.startsWith(qSpaceless) || meta.indoorNodeSpaceless.startsWith(qSpaceless)) score += 800;
+  else if (meta.nameWords.some((w) => w.startsWith(qTrimmed))) score += 750;
+  else if (qSpaceless && (meta.nameSpaceless.startsWith(qSpaceless) || meta.nameSpaceless.includes(qSpaceless))) score += 600;
+  else if (meta.nameLower.includes(qTrimmed)) score += 450;
+  else if (meta.dept.startsWith(qTrimmed) || meta.dept.includes(" " + qTrimmed)) score += 300;
+  else if (meta.desig.startsWith(qTrimmed)) score += 250;
 
-  const fullText = [nameLower, dept, desig, bldg, floor, room, type].join(" ");
-  const itemTokens = getSearchTokens(fullText);
   let matchedTokens = 0;
   for (const qTok of finalQTokens) {
-    if (itemTokens.some((iTok) => iTok.startsWith(qTok) || iTok.includes(qTok))) matchedTokens++;
+    if (meta.itemTokens.some((iTok) => iTok.startsWith(qTok) || iTok.includes(qTok))) matchedTokens++;
   }
   if (matchedTokens > 0) {
     score += matchedTokens * 30;
     if (matchedTokens === finalQTokens.length) score += 40;
+  }
+
+  if (score === 0 && qTrimmed.length > 3) {
+    for (const word of meta.nameWords) {
+      if (Math.abs(word.length - qTrimmed.length) <= 2) {
+        const distance = getEditDistance(word, qTrimmed);
+        if (distance <= 2) {
+          score += 100 - (distance * 10);
+          break;
+        }
+      }
+    }
+    if (score === 0 && Math.abs(meta.nameSpaceless.length - qSpaceless.length) <= 2) {
+      const distance = getEditDistance(meta.nameSpaceless, qSpaceless);
+      if (distance <= 2) {
+        score += 80 - (distance * 10);
+      }
+    }
   }
 
   return score;
@@ -348,17 +385,33 @@ export default function YDCard({
     }
   }, [outdoorDestinationName]);
 
+  const optimizedOutdoorItems = useMemo(() => buildOptimizedItems(SEARCH_ITEMS), [SEARCH_ITEMS]);
+
   const outdoorResults = useMemo(() => {
     if (mode !== "outdoor") return [];
-    const q = destQuery.trim().toLowerCase();
-    if (!q) return [];
-    return SEARCH_ITEMS
-      .map((item) => ({ item, score: scoreOutdoor(item, q, false, currentFloor) }))
+    const qTrimmed = destQuery.trim().toLowerCase();
+    if (!qTrimmed) return [];
+
+    const qTokens = getSearchTokens(qTrimmed);
+    const qSpaceless = normalizeSpaceless(qTrimmed);
+    const expandedQTokens = new Set(qTokens);
+    qTokens.forEach((t) => {
+      if (ALIASES[t]) {
+        ALIASES[t].forEach((alias) => getSearchTokens(alias).forEach((at) => expandedQTokens.add(at)));
+      }
+    });
+    const finalQTokens = Array.from(expandedQTokens);
+
+    const isToiletQuery = qTokens.some((t) => TOILET_TERMS.has(t));
+    const applyToiletFilter = isToiletQuery && Boolean(currentFloor);
+
+    return optimizedOutdoorItems
+      .map((meta) => ({ item: meta.item, score: scoreOptimizedItem(meta, qTrimmed, qSpaceless, finalQTokens, currentFloor, applyToiletFilter) }))
       .filter((r) => r.score > 0)
       .sort((a, b) => b.score !== a.score ? b.score - a.score : a.item.name.length - b.item.name.length)
       .slice(0, 10)
       .map((r) => r.item);
-  }, [destQuery, mode, SEARCH_ITEMS, currentFloor]);
+  }, [destQuery, mode, optimizedOutdoorItems, currentFloor]);
 
   // ── Indoor route state ───────────────────────────────────────────────────────
   const indoorOptions = useMemo(() => {
@@ -396,19 +449,54 @@ export default function YDCard({
   }, [initialDestination, indoorOptions]);
 
   // Indoor filtered results
+  const optimizedSourceOptions = useMemo(() => buildOptimizedItems(sourceOptions), [sourceOptions]);
   const indoorSourceResults = useMemo(() => {
-    const q = sourceText.trim().toLowerCase();
-    return sourceOptions.filter((o) => !q || `${o.name} ${o.roomNumber || o.id} ${o.floor}`.toLowerCase().includes(q));
-  }, [sourceText, sourceOptions]);
+    const qTrimmed = sourceText.trim().toLowerCase();
+    if (!qTrimmed) return sourceOptions;
 
-  const indoorDestResults = useMemo(() => {
-    const q = destText.trim().toLowerCase();
-    const isToiletQ = getSearchTokens(q).some((t) => TOILET_TERMS.has(t));
-    return indoorOptions.filter((o) => {
-      if (isToiletQ && isToiletItem(o) && o.floor && o.floor !== currentFloor) return false;
-      return !q || `${o.name} ${o.roomNumber || o.id} ${o.floor}`.toLowerCase().includes(q);
+    const qTokens = getSearchTokens(qTrimmed);
+    const qSpaceless = normalizeSpaceless(qTrimmed);
+    const expandedQTokens = new Set(qTokens);
+    qTokens.forEach((t) => {
+      if (ALIASES[t]) {
+        ALIASES[t].forEach((alias) => getSearchTokens(alias).forEach((at) => expandedQTokens.add(at)));
+      }
     });
-  }, [destText, indoorOptions, currentFloor]);
+    const finalQTokens = Array.from(expandedQTokens);
+
+    return optimizedSourceOptions
+      .map((meta) => ({ item: meta.item, score: scoreOptimizedItem(meta, qTrimmed, qSpaceless, finalQTokens, currentFloor, false) }))
+      .filter((r) => r.score > 0)
+      .sort((a, b) => b.score !== a.score ? b.score - a.score : a.item.name.length - b.item.name.length)
+      .slice(0, 10)
+      .map((r) => r.item);
+  }, [sourceText, sourceOptions, optimizedSourceOptions, currentFloor]);
+
+  const optimizedIndoorOptions = useMemo(() => buildOptimizedItems(indoorOptions), [indoorOptions]);
+  const indoorDestResults = useMemo(() => {
+    const qTrimmed = destText.trim().toLowerCase();
+    if (!qTrimmed) return indoorOptions;
+
+    const qTokens = getSearchTokens(qTrimmed);
+    const qSpaceless = normalizeSpaceless(qTrimmed);
+    const expandedQTokens = new Set(qTokens);
+    qTokens.forEach((t) => {
+      if (ALIASES[t]) {
+        ALIASES[t].forEach((alias) => getSearchTokens(alias).forEach((at) => expandedQTokens.add(at)));
+      }
+    });
+    const finalQTokens = Array.from(expandedQTokens);
+
+    const isToiletQuery = qTokens.some((t) => TOILET_TERMS.has(t));
+    const applyToiletFilter = isToiletQuery && Boolean(currentFloor);
+
+    return optimizedIndoorOptions
+      .map((meta) => ({ item: meta.item, score: scoreOptimizedItem(meta, qTrimmed, qSpaceless, finalQTokens, currentFloor, applyToiletFilter) }))
+      .filter((r) => r.score > 0)
+      .sort((a, b) => b.score !== a.score ? b.score - a.score : a.item.name.length - b.item.name.length)
+      .slice(0, 10)
+      .map((r) => r.item);
+  }, [destText, indoorOptions, optimizedIndoorOptions, currentFloor]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleOutdoorDestSelect = useCallback((item) => {

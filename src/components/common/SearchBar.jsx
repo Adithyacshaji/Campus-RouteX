@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useDeferredValue } from "react";
 import { useDatabase } from "../../context/DatabaseContext";
 import { Search, X, User, DoorOpen, MapPin, Building2, Mic, QrCode } from "lucide-react";
 import ImageModal from "./ImageModal";
@@ -22,8 +22,31 @@ const ALIASES = {
   washroom: ["toilet", "restroom", "bathroom", "wc"],
 };
 
+// Levenshtein distance for typo tolerance
+function getEditDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
 // Keywords that trigger smart floor filtering for toilets
-const TOILET_QUERY_TERMS = new Set(["toilet", "washroom", "restroom", "bathroom", "wc"]);
+const TOILET_QUERY_TERMS = new Set(["toilet", "toilets", "washroom", "restroom", "bathroom", "wc"]);
 const TOILET_NAME_TERMS = ["toilet", "washroom", "restroom", "bathroom", "girl", "boy"];
 
 function isToiletItem(item) {
@@ -36,7 +59,7 @@ const DEFAULT_SUGGESTIONS = [
   { name: "Placement Cell", type: "room", id: "P_N215", building: "stmarys", floor: "2" },
   { name: "Front Office", type: "room", id: "ch_ground_office", building: "chavara", floor: "G" },
   { name: "Main Canteen", type: "location", id: "canteen" },
-  { name: "Chavara Block", type: "building", id: "chavara-block" }
+  { name: "St Chavara Block", type: "building", id: "chavara", routeNode: "chavara" }
 ];
 
 /**
@@ -49,6 +72,7 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
   const { searchItems: SEARCH_ITEMS } = useDatabase();
   const [selectedImage, setSelectedImage] = useState(null);
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [showResults, setShowResults] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
 
@@ -177,8 +201,38 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
   const normalizeSpaceless = (text) =>
     (text || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
+  // Pre-compute searchable metadata once to dramatically speed up keystroke filtering
+  const optimizedSearchItems = useMemo(() => {
+    return SEARCH_ITEMS.map(item => {
+      const name = item.name || "";
+      const nameLower = name.toLowerCase();
+      const dept = (item.department || "").toLowerCase();
+      const desig = (item.designation || "").toLowerCase();
+      const bldg = (item.building || "").toLowerCase();
+      const floor = (item.floor || "").toString().toLowerCase();
+      const room = (item.room || "").toString().toLowerCase();
+      const type = (item.type || "").toLowerCase();
+      
+      const fullText = [nameLower, dept, desig, bldg, floor, room, type].join(" ");
+
+      return {
+        item,
+        nameLower,
+        nameSpaceless: normalizeSpaceless(nameLower),
+        itemId: (item.id || "").toString().toLowerCase(),
+        itemIdSpaceless: normalizeSpaceless((item.id || "").toString()),
+        indoorNodeSpaceless: normalizeSpaceless((item.indoorNode || "").toString()),
+        dept,
+        desig,
+        nameWords: getSearchTokens(nameLower),
+        itemTokens: getSearchTokens(fullText),
+        isToilet: isToiletItem(item)
+      };
+    });
+  }, [SEARCH_ITEMS]);
+
   const results = useMemo(() => {
-    const qTrimmed = query.trim().toLowerCase();
+    const qTrimmed = deferredQuery.trim().toLowerCase();
     if (!qTrimmed) return DEFAULT_SUGGESTIONS;
 
     const qTokens = getSearchTokens(qTrimmed);
@@ -195,73 +249,50 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
     });
     const finalQTokens = Array.from(expandedQTokens);
 
-    // Smart toilet floor filter: when user is indoors and searches for a
-    // toilet/washroom, only show results from the current active floor.
+    // Smart toilet floor filter: when user is indoors, only show toilets from the current active floor.
     const isToiletQuery = qTokens.some((t) => TOILET_QUERY_TERMS.has(t));
 
-    const scored = SEARCH_ITEMS.map((item) => {
+    const scored = optimizedSearchItems.map((meta) => {
       // Hard-suppress toilets from other floors when indoors
-      if (isToiletQuery && isIndoorMode && isToiletItem(item)) {
-        if (item.floor && item.floor !== currentFloor) return { item, score: -1 };
+      if (isIndoorMode && meta.isToilet) {
+        if (meta.item.floor && meta.item.floor !== currentFloor) return { item: meta.item, score: -1 };
       }
 
       let score = 0;
 
-      const name = item.name || "";
-      const nameLower = name.toLowerCase();
-      const nameSpaceless = normalizeSpaceless(nameLower);
-
-      const itemId = (item.id || "").toString().toLowerCase();
-      const itemIdSpaceless = normalizeSpaceless(itemId);
-
-      const indoorNode = (item.indoorNode || "").toString().toLowerCase();
-      const indoorNodeSpaceless = normalizeSpaceless(indoorNode);
-
-      const dept = (item.department || "").toLowerCase();
-      const desig = (item.designation || "").toLowerCase();
-      const bldg = (item.building || "").toLowerCase();
-      const floor = (item.floor || "").toString().toLowerCase();
-      const room = (item.room || "").toString().toLowerCase();
-      const type = (item.type || "").toLowerCase();
-
-      const nameWords = getSearchTokens(nameLower);
-
       // --- TIER 1: EXACT MATCHES ON NAME OR ROOM/NODE ID ---
-      if (nameLower === qTrimmed || itemId === qTrimmed || itemIdSpaceless === qSpaceless) {
+      if (meta.nameLower === qTrimmed || meta.itemId === qTrimmed || meta.itemIdSpaceless === qSpaceless) {
         score += 1000;
       }
       // --- TIER 2: DIRECT PREFIX MATCHES ON NAME OR ROOM/NODE ID ---
-      else if (nameLower.startsWith(qTrimmed) || itemIdSpaceless.startsWith(qSpaceless) || indoorNodeSpaceless.startsWith(qSpaceless)) {
+      else if (meta.nameLower.startsWith(qTrimmed) || meta.itemIdSpaceless.startsWith(qSpaceless) || meta.indoorNodeSpaceless.startsWith(qSpaceless)) {
         score += 800;
       }
       // Word prefix in item name (e.g. typing "soor" matching "Dr. SOORAJ T R")
-      else if (nameWords.some((w) => w.startsWith(qTrimmed))) {
+      else if (meta.nameWords.some((w) => w.startsWith(qTrimmed))) {
         score += 750;
       }
       // Spaceless room/item match (e.g. typing "501" matching "F501" or "CSE Faculty Room")
-      else if (qSpaceless && (nameSpaceless.startsWith(qSpaceless) || nameSpaceless.includes(qSpaceless))) {
+      else if (qSpaceless && (meta.nameSpaceless.startsWith(qSpaceless) || meta.nameSpaceless.includes(qSpaceless))) {
         score += 600;
       }
 
       // --- TIER 3: CONTAINS MATCH ON NAME ---
-      else if (nameLower.includes(qTrimmed)) {
+      else if (meta.nameLower.includes(qTrimmed)) {
         score += 450;
       }
 
       // --- TIER 4: DEPARTMENT / DESIGNATION DIRECT MATCH ---
-      else if (dept.startsWith(qTrimmed) || dept.includes(" " + qTrimmed)) {
+      else if (meta.dept.startsWith(qTrimmed) || meta.dept.includes(" " + qTrimmed)) {
         score += 300;
-      } else if (desig.startsWith(qTrimmed)) {
+      } else if (meta.desig.startsWith(qTrimmed)) {
         score += 250;
       }
 
       // --- TIER 5: TOKEN & ALIAS MATCHING ---
-      const fullText = [nameLower, dept, desig, bldg, floor, room, type].join(" ");
-      const itemTokens = getSearchTokens(fullText);
-
       let matchedTokens = 0;
       for (const qTok of finalQTokens) {
-        if (itemTokens.some((iTok) => iTok.startsWith(qTok) || iTok.includes(qTok))) {
+        if (meta.itemTokens.some((iTok) => iTok.startsWith(qTok) || iTok.includes(qTok))) {
           matchedTokens++;
         }
       }
@@ -273,7 +304,30 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
         }
       }
 
-      return { item, score };
+      // --- TIER 6: FUZZY MATCHING (TYPO TOLERANCE) ---
+      // If we still have no solid score, and the query is reasonably long, check for typos
+      if (score === 0 && qTrimmed.length > 3) {
+        // 1. Check if query is a typo of a specific word (e.g. "soorja" for "sooraj")
+        for (const word of meta.nameWords) {
+          if (Math.abs(word.length - qTrimmed.length) <= 2) {
+            const distance = getEditDistance(word, qTrimmed);
+            if (distance <= 2) {
+              score += 100 - (distance * 10);
+              break;
+            }
+          }
+        }
+        
+        // 2. Check if the spaceless query is a typo of the spaceless name (e.g. "sanjaysntosh")
+        if (score === 0 && Math.abs(meta.nameSpaceless.length - qSpaceless.length) <= 2) {
+            const distance = getEditDistance(meta.nameSpaceless, qSpaceless);
+            if (distance <= 2) {
+                score += 80 - (distance * 10);
+            }
+        }
+      }
+
+      return { item: meta.item, score };
     }).filter((res) => res.score > 0);
 
     return scored
@@ -287,7 +341,7 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
       })
       .slice(0, 10)
       .map((res) => res.item);
-  }, [query, currentFloor, isIndoorMode]);
+  }, [deferredQuery, optimizedSearchItems, currentFloor, isIndoorMode]);
 
   // Reset active index when query changes
   useEffect(() => {
@@ -409,7 +463,7 @@ function SearchBar({ onSelect, currentFloor = "G", isIndoorMode = false }) {
       </div>
 
       {showResults && (
-        <div className="absolute top-18 left-4 right-4 bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] border border-gray-100 overflow-hidden z-[2000]" ref={resultsRef}>
+        <div className="absolute top-18 left-4 right-4 bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] border border-gray-100 overflow-hidden z-2000" ref={resultsRef}>
           {results.length > 0 ? (
             <div className="py-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
               {results.map((location, index) => {

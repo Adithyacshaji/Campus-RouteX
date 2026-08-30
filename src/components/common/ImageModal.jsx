@@ -1,12 +1,13 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export default function ImageModal({ imageUrl, altText, onClose }) {
   if (!imageUrl) return null;
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]"
+      className="fixed inset-0 z-9999999 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]"
       onClick={onClose}
     >
       <div 
@@ -25,6 +26,7 @@ export default function ImageModal({ imageUrl, altText, onClose }) {
           className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
         />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

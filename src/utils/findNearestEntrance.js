@@ -4,6 +4,66 @@ import { calculateHaversineDistance } from "./haversine";
 /** Outdoor graph node IDs for St Mary's Block's three distinct entrances. */
 export const ST_MARYS_ENTRANCE_NODES = ["g", "b1", "b2"];
 
+export function findBestStMarysEntranceByPath(startNode, edges, userLocation = null, customNodes = null) {
+  const nodesToUse = customNodes || NODES;
+  if (!startNode || !edges) {
+    return findNearestStMarysEntrance(userLocation, nodesToUse);
+  }
+
+  // Lightweight Dijkstra for St Mary's entrances
+  const graph = {};
+  for (const edge of edges) {
+    const a = Array.isArray(edge) ? edge[0] : edge.source;
+    const b = Array.isArray(edge) ? edge[1] : edge.target;
+    const posA = nodesToUse[a];
+    const posB = nodesToUse[b];
+    const w = posA && posB
+      ? calculateHaversineDistance(posA[0], posA[1], posB[0], posB[1])
+      : 1;
+    if (!graph[a]) graph[a] = [];
+    if (!graph[b]) graph[b] = [];
+    graph[a].push({ node: b, weight: w });
+    graph[b].push({ node: a, weight: w });
+  }
+
+  const dist = {};
+  const visited = new Set();
+  for (const n in graph) dist[n] = Infinity;
+  if (!(startNode in dist)) dist[startNode] = Infinity;
+  dist[startNode] = 0;
+
+  while (true) {
+    let u = null, minD = Infinity;
+    for (const n in dist) {
+      if (!visited.has(n) && dist[n] < minD) { minD = dist[n]; u = n; }
+    }
+    if (u === null) break;
+    visited.add(u);
+    // early exit once all St Marys targets are settled
+    if (ST_MARYS_ENTRANCE_NODES.every(n => visited.has(n))) break;
+    for (const { node, weight } of (graph[u] || [])) {
+      if (!visited.has(node)) {
+        const nd = dist[u] + weight;
+        if (nd < (dist[node] ?? Infinity)) dist[node] = nd;
+      }
+    }
+  }
+
+  let bestNodeId = "g";
+  let bestDist = Infinity;
+  for (const nodeId of ST_MARYS_ENTRANCE_NODES) {
+    const d = dist[nodeId] ?? Infinity;
+    if (d < bestDist) { bestDist = d; bestNodeId = nodeId; }
+  }
+
+  // If Dijkstra gave no useful result, fall back to GPS straight-line
+  if (bestDist === Infinity) {
+    return findNearestStMarysEntrance(userLocation, nodesToUse);
+  }
+
+  return { nodeId: bestNodeId, distanceMeters: bestDist, position: nodesToUse[bestNodeId] };
+}
+
 /**
  * Compare GPS distance from the user to all St Mary's entrances and return
  * the closest one as the pathfinding destination node.
@@ -161,13 +221,22 @@ export function findBestChavaraEntranceByPath(startNode, edges, userLocation = n
 }
 
 /**
- * Find the nearest entrance for a specific building block.
+ * Find the nearest entrance for a specific building block, preferring graph paths if edges are provided.
  *
- * @param {{ lat: number, lng: number }} userLocation
+ * @param {{ lat: number, lng: number } | null} userLocation
  * @param {string} building
+ * @param {string} startNode
+ * @param {string[]} edges
  */
-export function findNearestBuildingEntrance(userLocation, building, customNodes = null) {
+export function findNearestBuildingEntrance(userLocation, building, customNodes = null, startNode = null, edges = null) {
   const isChavara = building && building.toLowerCase().includes("chavara");
+  
+  if (startNode && edges) {
+    return isChavara 
+      ? findBestChavaraEntranceByPath(startNode, edges, userLocation, customNodes)
+      : findBestStMarysEntranceByPath(startNode, edges, userLocation, customNodes);
+  }
+
   return isChavara 
     ? findNearestChavaraEntrance(userLocation, customNodes)
     : findNearestStMarysEntrance(userLocation, customNodes);

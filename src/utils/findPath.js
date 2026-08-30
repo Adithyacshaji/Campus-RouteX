@@ -27,6 +27,12 @@ export function findPath(start, end, edges, nodes = {}) {
                 : Math.hypot(nodeA[0] - nodeB[0], nodeA[1] - nodeB[1]);
         }
 
+        // Apply a massive penalty for changing floors so the algorithm doesn't
+        // take shortcuts through other floors when routing on the same floor.
+        if (nodes[a]?.floor && nodes[b]?.floor && nodes[a].floor !== nodes[b].floor) {
+            distance += 100000;
+        }
+
         graph[a].push({ node: b, weight: distance });
         graph[b].push({ node: a, weight: distance });
     }

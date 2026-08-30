@@ -39,7 +39,7 @@ export const FLOORS = {
       { id: "N203", name: "S5 ME" },
       { id: "N202", name: "S3 ME" },
       { id: "CSQ", name: "Centre Square" },
-      // { id: "N215", name: "N215" },
+      { id: "N216", name: "ECE Department" },
       // 
     ],
     hasLift: true,
@@ -129,7 +129,7 @@ export const FLOORS = {
       { id: "N512", name: "Sick Room" },
       { id: "N514", name: "N514" },
       { id: "N515", name: "N515" },
-      { id: "N507", name: "S7 CS B" },
+      { id: "N507", name: "N507" },
       { id: "N513", name: "MBA S1 B" },
       { id: "N514", name: "MBA S1 A" },
       { id: "N515", name: "MBA S3" },

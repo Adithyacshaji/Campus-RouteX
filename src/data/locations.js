@@ -12,15 +12,9 @@ export const LOCATIONS = [
   },
   {
     id: "chavara",
-    name: "Chavara Entrance 1",
+    name: "St Chavara Block",
     position: [10.356112, 76.212578],
     routeNode: "chavara",
-  },
-  {
-    id: "p3",
-    name: "Chavara Entrance 2",
-    position: [10.356367, 76.212575],
-    routeNode: "p3",
   },
   {
     id: "cafe",
