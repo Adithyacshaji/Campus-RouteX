@@ -1487,6 +1487,7 @@ function MainApp() {
 
     setIndoorRouteNodes(path);
     setIndoorRoute(getPathCoordinates(path, ACTIVE_INDOOR_NODES));
+    pushState(STEPS.FLOOR_NAVIGATION);
   };
 
   const markIndoorDestinationReached = (reachedNode) => {
@@ -1938,7 +1939,7 @@ function MainApp() {
           indoorNode: location.indoorNode || location.id,
         };
         await runManualIndoorRoute(sourceOpt, targetOpt);
-        setShowNavigationCard(true);
+        // navStep is now FLOOR_NAVIGATION (or FLOOR_CHOICE) — card auto-shows
       } else {
         setShowNavigationCard(true);
         setNavStep(STEPS.INDOOR_READY);
@@ -1999,7 +2000,7 @@ function MainApp() {
 
         {/* ── QR Simulator (dev/testing) ───────────────────────────────────── */}
 
-        <div className="qr-simulator-container">
+        {false && <div className="qr-simulator-container">
           <button
             className="qr-simulator-toggle"
             onClick={() => setQrSimOpen((o) => !o)}
@@ -2050,7 +2051,7 @@ function MainApp() {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* ── Floating Search & Chips Overlay ─────────────────────────────────── */}
         <div className="absolute top-[env(safe-area-inset-top,16px)] left-0 right-0 flex flex-col z-1500 pointer-events-none mt-2">

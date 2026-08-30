@@ -116,10 +116,6 @@ export const ST_MARYS_G_EDGES = [
     "N314"
   ],
   [
-    "co_2_G",
-    "N311"
-  ],
-  [
     "co_4_G",
     "N308"
   ],
