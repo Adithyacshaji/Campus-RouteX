@@ -504,7 +504,7 @@ function MainApp() {
     });
 
     // ── For St. Mary's: enrich nodes with human-readable names from FLOORS ──
-    // Build a lookup: roomId -> first meaningful name (skips entries where name===id)
+    // Only used as a fallback for nodes that have no label set in the DB.
     if (currentBuilding !== "chavara") {
       const roomNameLookup = {};
       Object.values(FLOORS).forEach((floorData) => {
@@ -516,7 +516,10 @@ function MainApp() {
       });
       Object.keys(normalizedNodes).forEach((key) => {
         const name = roomNameLookup[key];
-        if (name) normalizedNodes[key] = { ...normalizedNodes[key], label: name };
+        // Only apply static name if the node has no label from the DB
+        if (name && !normalizedNodes[key].label) {
+          normalizedNodes[key] = { ...normalizedNodes[key], label: name };
+        }
       });
     }
 
