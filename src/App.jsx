@@ -62,7 +62,7 @@ function formatFloor(floor) {
 }
 
 // Development / Debug toggles
-const SHOW_SIMULATE_QR = true;
+const SHOW_SIMULATE_QR = false;
 
 const STEPS = {
 

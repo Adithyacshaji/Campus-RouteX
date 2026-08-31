@@ -24,7 +24,7 @@ import { getDistanceToRoute } from "../../utils/distanceToRoute";
 
 
 // ─── Debug flags ──────────────────────────────────────────────────────────────
-const SHOW_INDOOR_DEBUG_MARKERS = true; // Show all indoor nodes as markers for debugging
+const SHOW_INDOOR_DEBUG_MARKERS = false; // Show all indoor nodes as markers for debugging
 const SHOW_INDOOR_DEBUG_TOOLS = false;
 const INITIAL_OUTDOOR_MARKER_IDS = [
   "chavara",
