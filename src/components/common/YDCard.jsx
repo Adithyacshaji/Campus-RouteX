@@ -62,6 +62,14 @@ function isToiletItem(item) {
   return TOILET_NAMES.some((t) => name.includes(t));
 }
 
+const DEFAULT_SUGGESTIONS = [
+  { name: "Executive Director", type: "room", id: "N311", building: "stmarys", floor: "G" },
+  { name: "Principal's Office", type: "room", id: "N314", building: "stmarys", floor: "G" },
+  { name: "Office", type: "room", id: "N319", building: "stmarys", floor: "G" },
+  { name: "Placement Cell", type: "room", id: "N106", building: "stmarys", floor: "B2" },
+  { name: "Main Canteen", type: "location", id: "canteen" },
+];
+
 // Converts raw floor keys to readable labels
 function formatFloor(floor) {
   if (!floor) return "Ground Floor";
@@ -192,15 +200,11 @@ function buildIndoorOptions(activeIndoorNodes, searchItems) {
     const indoorNodeId = item.indoorNode || item.id;
     const indoorNode = activeIndoorNodes[indoorNodeId];
     const isInCurrentBuilding = Boolean(indoorNode);
-    const isRoom = item.type === "room";
     return {
+      ...item,
       id: isInCurrentBuilding ? indoorNodeId : item.id,
-      name: item.name,
-      roomNumber: item.room || (isRoom ? item.id : null),
       floor: indoorNode?.floor || item.floor,
-      kind: item.type === "faculty" ? item.department || "Faculty" : isRoom ? "Room" : "Campus location",
       routeNode: item.routeNode || item.id,
-      building: item.building,
       outdoor: !isInCurrentBuilding,
     };
   });
@@ -211,7 +215,7 @@ function buildIndoorOptions(activeIndoorNodes, searchItems) {
 
   const namedNodeOptions = Object.entries(activeIndoorNodes)
     .filter(([, node]) => node.label)
-    .map(([id, node]) => ({ id, name: node.label, floor: node.floor, kind: "Indoor point" }))
+    .map(([id, node]) => ({ id, name: node.label, floor: node.floor, type: "room" }))
     .filter((item) => !representedIds.has(item.id));
 
   return [...searchOptions, ...namedNodeOptions]
@@ -231,10 +235,23 @@ function findIndoorOption(value, options) {
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 function ItemIcon({ item }) {
-  if (item.type === "faculty") return <User size={16} />;
-  if (item.type === "room") return <DoorOpen size={16} />;
-  if (item.building || item.type === "building") return <Building2 size={16} />;
-  return <MapPin size={16} />;
+  if (item.type === "faculty") return <User size={18} />;
+  if (item.type === "room") return <DoorOpen size={18} />;
+  if (item.building || item.type === "building") return <Building2 size={18} />;
+  return <MapPin size={18} />;
+}
+
+function getItemIconWrapperClass(item, isActive) {
+  if (item.type === "faculty") {
+    return isActive ? "bg-sky-200 text-sky-700" : "bg-sky-100 text-sky-600";
+  }
+  if (item.type === "room") {
+    return isActive ? "bg-emerald-200 text-emerald-700" : "bg-emerald-100 text-emerald-600";
+  }
+  if (item.building || item.type === "building") {
+    return isActive ? "bg-amber-200 text-amber-700" : "bg-amber-100 text-amber-600";
+  }
+  return isActive ? "bg-purple-200 text-purple-700" : "bg-purple-100 text-purple-600";
 }
 
 function formatBuilding(building) {
@@ -332,7 +349,7 @@ function SearchField({ id, label, value, onChange, onSelect, results, isReadOnly
       </div>
 
       {focused && value.trim() && results.length > 0 && (
-        <div className="yd-dropdown">
+        <div className="yd-dropdown !p-0 !py-2">
           {results.map((item, idx) => {
             const isFaculty = item.type === "faculty";
             const normalizedName = isFaculty ? normalizeName(item.name) : "";
@@ -341,13 +358,13 @@ function SearchField({ id, label, value, onChange, onSelect, results, isReadOnly
             return (
             <button
               key={`${item.id}-${idx}`}
-              className={`yd-dropdown-item${idx === activeIndex ? " yd-dropdown-item--active" : ""}`}
+              className={`w-full text-left px-5 py-3 flex items-center gap-4 transition-colors ${idx === activeIndex ? "bg-blue-50/80" : "hover:bg-gray-50"}`}
               type="button"
               onMouseDown={() => onSelect(item)}
               onMouseEnter={() => setActiveIndex(idx)}
             >
               <div 
-                className={`yd-dropdown-icon ${photoPath ? 'rounded-full overflow-hidden p-0 w-8 h-8 shrink-0 hover:opacity-80 border border-gray-200 bg-gray-100 flex items-center justify-center' : ''}`}
+                className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 overflow-hidden ${photoPath ? 'cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 border border-gray-200' : getItemIconWrapperClass(item, idx === activeIndex)}`}
                 onMouseDown={(e) => {
                   if (photoPath) {
                     e.stopPropagation();
@@ -357,14 +374,14 @@ function SearchField({ id, label, value, onChange, onSelect, results, isReadOnly
                 }}
               >
                 {photoPath ? (
-                  <img src={photoPath} alt={item.name} className="w-full h-full object-cover" />
+                  <img src={photoPath} alt={item.name} className="w-full h-full object-cover object-center" />
                 ) : (
                   <ItemIcon item={item} />
                 )}
               </div>
-              <div>
-                <div className="yd-dropdown-name">{item.name}</div>
-                <div className="yd-dropdown-meta">{itemMeta(item)}</div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[15px] font-semibold text-gray-900 truncate">{item.name}</span>
+                <span className="text-[13px] text-gray-500 truncate">{itemMeta(item)}</span>
               </div>
             </button>
           )})}
@@ -417,7 +434,7 @@ export default function YDCard({
   const outdoorResults = useMemo(() => {
     if (mode !== "outdoor") return [];
     const qTrimmed = destQuery.trim().toLowerCase();
-    if (!qTrimmed) return [];
+    if (!qTrimmed) return DEFAULT_SUGGESTIONS;
 
     const qTokens = getSearchTokens(qTrimmed);
     const qSpaceless = normalizeSpaceless(qTrimmed);
@@ -479,7 +496,7 @@ export default function YDCard({
   const optimizedSourceOptions = useMemo(() => buildOptimizedItems(sourceOptions), [sourceOptions]);
   const indoorSourceResults = useMemo(() => {
     const qTrimmed = sourceText.trim().toLowerCase();
-    if (!qTrimmed) return sourceOptions;
+    if (!qTrimmed) return DEFAULT_SUGGESTIONS;
 
     const qTokens = getSearchTokens(qTrimmed);
     const qSpaceless = normalizeSpaceless(qTrimmed);
@@ -502,7 +519,7 @@ export default function YDCard({
   const optimizedIndoorOptions = useMemo(() => buildOptimizedItems(indoorOptions), [indoorOptions]);
   const indoorDestResults = useMemo(() => {
     const qTrimmed = destText.trim().toLowerCase();
-    if (!qTrimmed) return indoorOptions;
+    if (!qTrimmed) return DEFAULT_SUGGESTIONS;
 
     const qTokens = getSearchTokens(qTrimmed);
     const qSpaceless = normalizeSpaceless(qTrimmed);

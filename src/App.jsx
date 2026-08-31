@@ -1003,9 +1003,9 @@ function MainApp() {
     }
 
     const { distanceMeters } = getDistanceToRoute(route, position);
-    if (distanceMeters > 20) {
+    if (distanceMeters > 10) {
       offRouteRef.current += 1;
-      if (offRouteRef.current >= 3) {
+      if (offRouteRef.current >= 2) {
         console.log("User off route by", distanceMeters, "m. Recalculating...");
         offRouteRef.current = 0;
         startOutdoorNavigation(null, position);

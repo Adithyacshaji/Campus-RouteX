@@ -78,11 +78,11 @@ function formatBuilding(building) {
 }
 
 const DEFAULT_SUGGESTIONS = [
+  { name: "Executive Director", type: "room", id: "N311", building: "stmarys", floor: "G" },
   { name: "Principal's Office", type: "room", id: "N314", building: "stmarys", floor: "G" },
-  { name: "Placement Cell", type: "room", id: "P_N215", building: "stmarys", floor: "2" },
-  { name: "Front Office", type: "room", id: "ch_ground_office", building: "chavara", floor: "G" },
+  { name: "Office", type: "room", id: "N319", building: "stmarys", floor: "G" },
+  { name: "Placement Cell", type: "room", id: "N106", building: "stmarys", floor: "B2" },
   { name: "Main Canteen", type: "location", id: "canteen" },
-  { name: "St Chavara Block", type: "building", id: "chavara", routeNode: "chavara" }
 ];
 
 /**

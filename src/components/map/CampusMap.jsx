@@ -881,7 +881,7 @@ function trimRouteFromLocation(route, location) {
 
   // Do not distort the route if the user is far away from it (for example a
   // poor GPS reading or an intentional detour).
-  if (distanceMeters > 15) return route;
+  if (distanceMeters > 5) return route;
   
   return [point, ...route.slice(segmentIndex + 1)];
 }
@@ -1286,7 +1286,7 @@ function LiveOutdoorFeatures({ subscribeToLocation, currentLocation, initialHead
     if (!liveLocation) return null;
     if (route && route.length >= 2) {
       const { point, distanceMeters } = getDistanceToRoute(route, liveLocation);
-      if (distanceMeters <= 15) {
+      if (distanceMeters <= 5) {
         return point;
       }
     }
