@@ -194,7 +194,9 @@ function scoreOptimizedItem(meta, qTrimmed, qSpaceless, finalQTokens, currentFlo
   return score;
 }
 
-// ─── Indoor option builder (mirrors IndoorRoutingCard buildOptions) ────────────
+// ─── Indoor option builder ────────────────────────────────────────────────────
+// Only rooms from the `rooms` table appear in search.
+// Indoor node labels are for map display only and are intentionally excluded.
 function buildIndoorOptions(activeIndoorNodes, searchItems) {
   const searchOptions = searchItems.map((item) => {
     const indoorNodeId = item.indoorNode || item.id;
@@ -209,17 +211,8 @@ function buildIndoorOptions(activeIndoorNodes, searchItems) {
     };
   });
 
-  const representedIds = new Set(
-    searchOptions.filter((i) => !i.outdoor).map((i) => i.id).filter(Boolean)
-  );
-
-  const namedNodeOptions = Object.entries(activeIndoorNodes)
-    .filter(([, node]) => node.label)
-    .map(([id, node]) => ({ id, name: node.label, floor: node.floor, type: "room" }))
-    .filter((item) => !representedIds.has(item.id));
-
-  return [...searchOptions, ...namedNodeOptions]
-    .filter((item, index, all) => all.findIndex((o) => o.id === item.id && o.name === item.name) === index)
+  return searchOptions
+    .filter((item, index, all) => all.findIndex((o) => o.id === item.id) === index)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

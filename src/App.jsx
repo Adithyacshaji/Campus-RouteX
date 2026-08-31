@@ -61,6 +61,9 @@ function formatFloor(floor) {
   return `${f} Floor`;
 }
 
+// Development / Debug toggles
+const SHOW_SIMULATE_QR = true;
+
 const STEPS = {
 
   IDLE: "IDLE",
@@ -2000,7 +2003,7 @@ function MainApp() {
 
         {/* ── QR Simulator (dev/testing) ───────────────────────────────────── */}
 
-        {false && <div className="qr-simulator-container">
+        {SHOW_SIMULATE_QR && <div className="qr-simulator-container">
           <button
             className="qr-simulator-toggle"
             onClick={() => setQrSimOpen((o) => !o)}

@@ -79,47 +79,51 @@ export const DatabaseProvider = ({ children }) => {
     const chavara = {};
     
     data.forEach(node => {
+      // Label comes ONLY from the DB — no static fallback
       const formatted = {
         floor: node.floor,
         position: [node.lat, node.lng],
+        // Only set label if DB has a non-empty value
         ...(node.label ? { label: node.label } : {}),
+        // Only set labelPosition if DB has explicit coordinates
         ...(node.label_lat != null && node.label_lng != null ? { labelPosition: [node.label_lat, node.label_lng] } : {})
       };
       
       if (node.building === 'stmarys') {
-        const staticNode = STATIC_INDOOR_NODES[node.id] || {};
+        const { label: _l, labelPosition: _lp, ...staticRest } = STATIC_INDOOR_NODES[node.id] || {};
         stmarys[node.id] = { 
-          ...staticNode, 
-          ...formatted,
-          label: (node.label !== undefined && node.label !== null) ? node.label : staticNode.label
+          ...staticRest,   // position/floor/edges from static, but NO label
+          ...formatted,    // DB values win; label only present if DB has it
         };
       } else {
-        const staticNode = STATIC_CHAVARA_INDOOR_NODES[node.id] || {};
+        const { label: _l, labelPosition: _lp, ...staticRest } = STATIC_CHAVARA_INDOOR_NODES[node.id] || {};
         chavara[node.id] = {
-          ...staticNode,
+          ...staticRest,
           id: node.id,
           ...formatted,
-          label: (node.label !== undefined && node.label !== null) ? node.label : staticNode.label
         };
       }
     });
     
-    // Add any static nodes that are NOT in the database
+    // Add static nodes that are NOT in the DB yet — strip labels so only DB controls them
     Object.keys(STATIC_INDOOR_NODES).forEach(id => {
       if (!stmarys[id]) {
-        stmarys[id] = { id, ...STATIC_INDOOR_NODES[id] };
+        const { label: _l, labelPosition: _lp, ...rest } = STATIC_INDOOR_NODES[id];
+        stmarys[id] = { id, ...rest };
       }
     });
     
     Object.keys(STATIC_CHAVARA_INDOOR_NODES).forEach(id => {
       if (!chavara[id]) {
-        chavara[id] = { id, ...STATIC_CHAVARA_INDOOR_NODES[id] };
+        const { label: _l, labelPosition: _lp, ...rest } = STATIC_CHAVARA_INDOOR_NODES[id];
+        chavara[id] = { id, ...rest };
       }
     });
     
     setIndoorNodes(stmarys);
     setChavaraIndoorNodes(chavara);
   };
+
 
   const fetchIndoorEdges = async () => {
     if (!isSupabaseConfigured) return;
@@ -166,6 +170,14 @@ export const DatabaseProvider = ({ children }) => {
     setDbRooms(data || []);
   };
 
+  // Returns a sort rank so faculties appear in order: HOD → Deputy HOD → everyone else
+  const getFacultyRank = (designation = '') => {
+    const d = designation.toLowerCase();
+    if (d.includes('hod') && !d.includes('deputy') && !d.includes('asst')) return 0;
+    if (d.includes('deputy') || (d.includes('asst') && d.includes('hod'))) return 1;
+    return 2;
+  };
+
   const fetchBottomSheetData = async () => {
     if (!isSupabaseConfigured) return;
     const { data: depts, error: deptError } = await supabase.from('departments').select('*').order('name');
@@ -185,7 +197,12 @@ export const DatabaseProvider = ({ children }) => {
           hasIndoorNavigation: f.has_indoor_navigation,
           routeNode: f.route_node || undefined,
           indoorNode: f.indoor_node || undefined
-        }));
+        }))
+        .sort((a, b) => {
+          const rankDiff = getFacultyRank(a.designation) - getFacultyRank(b.designation);
+          if (rankDiff !== 0) return rankDiff;
+          return (a.name || '').localeCompare(b.name || '');  // alphabetical within same rank
+        });
       return {
         id: dept.id,
         name: dept.name,

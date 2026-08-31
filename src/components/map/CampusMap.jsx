@@ -24,7 +24,7 @@ import { getDistanceToRoute } from "../../utils/distanceToRoute";
 
 
 // ─── Debug flags ──────────────────────────────────────────────────────────────
-const SHOW_INDOOR_DEBUG_MARKERS = false; // Show all indoor nodes as markers for debugging
+const SHOW_INDOOR_DEBUG_MARKERS = true; // Show all indoor nodes as markers for debugging
 const SHOW_INDOOR_DEBUG_TOOLS = false;
 const INITIAL_OUTDOOR_MARKER_IDS = [
   "chavara",
@@ -314,12 +314,13 @@ const LABEL_SKIP_PREFIXES = [
 
 function shouldShowLabel(id, node) {
   const idLower = (id || "").toLowerCase();
-  // Always skip corridor / infrastructure nodes
+  // If the user explicitly set a label in the DB, always show it —
+  // overrides skip-prefix rules and the label-equals-id check.
+  if (node.label) return true;
+  // For nodes without a label, skip corridor / infrastructure nodes
   if (LABEL_SKIP_PREFIXES.some((p) => idLower.startsWith(p.toLowerCase()))) return false;
-  // Show if the node has a meaningful label (different from the raw id)
-  if (node.label && node.label !== id) return true;
   // Rooms without a label: show the ID if it looks like a room number (e.g. N301, N401)
-  if (!node.label && /^[A-Z]\d{3,4}$/.test(id)) return true;
+  if (/^[A-Z]\d{3,4}$/.test(id)) return true;
   return false;
 }
 

@@ -3,6 +3,8 @@ import { MapPin, Navigation, X, Navigation2 } from "lucide-react";
 import { useDatabase } from "../../context/DatabaseContext";
 
 const buildOptions = (activeIndoorNodes, searchItemsToUse = []) => {
+  // Only rooms from the `rooms` table appear in search.
+  // Indoor node labels are for map display only and are intentionally excluded.
   const searchOptions = searchItemsToUse.map((item) => {
     const indoorNodeId = item.indoorNode || item.id;
     const indoorNode = activeIndoorNodes[indoorNodeId];
@@ -17,27 +19,12 @@ const buildOptions = (activeIndoorNodes, searchItemsToUse = []) => {
       kind: item.type === "faculty" ? item.department || "Faculty" : isRoom ? "Room" : "Campus location",
       routeNode: item.routeNode || item.id,
       building: item.building,
-      // Destinations without a node in this building are reached by exiting
-      // the current block and continuing outdoors.
       outdoor: !isInCurrentBuilding,
     };
   });
 
-  // Collect all node IDs that are already represented as a room or faculty office in searchOptions
-  const representedIds = new Set(
-    searchOptions
-      .filter((item) => !item.outdoor) // only filter nodes in the current building
-      .map((item) => item.id)
-      .filter(Boolean)
-  );
-
-  const namedNodeOptions = Object.entries(activeIndoorNodes)
-    .filter(([, node]) => node.label)
-    .map(([id, node]) => ({ id, name: node.label, floor: node.floor, kind: "Indoor point" }))
-    .filter((item) => !representedIds.has(item.id)); // filter out if already represented
-
-  return [...searchOptions, ...namedNodeOptions]
-    .filter((item, index, all) => all.findIndex((other) => other.id === item.id && other.name === item.name) === index)
+  return searchOptions
+    .filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index)
     .sort((a, b) => a.name.localeCompare(b.name));
 };
 
