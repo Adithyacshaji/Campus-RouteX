@@ -10,8 +10,6 @@ import { CHAVARA_INDOOR_NODES as STATIC_CHAVARA_INDOOR_NODES } from '../data/cha
 import { CHAVARA_INDOOR_EDGES as STATIC_CHAVARA_INDOOR_EDGES } from '../data/chavaraIndoorGraph';
 import { QR_LOCATIONS as STATIC_QR_LOCATIONS } from '../data/qrLocations';
 import { bottomSheetData as STATIC_BOTTOM_SHEET_DATA } from '../data/bottomSheetData';
-import { FLOORS } from '../data/floors';
-import { CHAVARA_FLOORS } from '../data/chavaraFloors';
 
 const DatabaseContext = createContext(null);
 
@@ -293,54 +291,19 @@ export const DatabaseProvider = ({ children }) => {
   const searchItems = useMemo(() => {
     const roomItems = [];
 
-    if (dbRooms.length > 0) {
-      dbRooms.forEach(room => {
-        roomItems.push({
-          id: room.room_id,
-          name: room.name,
-          type: "room",
-          floor: room.floor,
-          routeNode: room.route_node,
-          building: room.building,
-          ...(room.indoor_node ? { indoorNode: room.indoor_node } : {})
-        });
+    // Rooms come exclusively from the `rooms` table in the database.
+    // No static fallback — if the table is empty or still loading, no rooms are shown.
+    dbRooms.forEach(room => {
+      roomItems.push({
+        id: room.room_id,
+        name: room.name,
+        type: "room",
+        floor: room.floor,
+        routeNode: room.route_node,
+        building: room.building,
+        ...(room.indoor_node ? { indoorNode: room.indoor_node } : {})
       });
-    } else {
-      // Fallback if DB is empty or loading
-      Object.entries(FLOORS).forEach(([floor, data]) => {
-        data.rooms.forEach((room) => {
-          const roomId = typeof room === "string" ? room : room.id;
-          const roomName = typeof room === "string" ? room : room.name;
-
-          roomItems.push({
-            id: roomId,
-            name: roomName,
-            type: "room",
-            floor,
-            routeNode: data.entrance,
-            building: "St Mary's Block",
-          });
-        });
-      });
-
-      Object.entries(CHAVARA_FLOORS).forEach(([floor, data]) => {
-        data.rooms.forEach((room) => {
-          const roomId = typeof room === "string" ? room : room.id;
-          const roomName = typeof room === "string" ? room : room.name;
-          const numericId = roomId.replace(/\D/g, "");
-
-          roomItems.push({
-            id: roomId,
-            name: roomName,
-            type: "room",
-            floor,
-            routeNode: "chavara",
-            building: "chavara",
-            indoorNode: "F" + numericId,
-          });
-        });
-      });
-    }
+    });
 
     const facultyItems = [];
     bottomSheetData.departments.forEach((department) => {

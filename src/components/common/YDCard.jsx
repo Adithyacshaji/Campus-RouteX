@@ -204,15 +204,19 @@ function buildIndoorOptions(activeIndoorNodes, searchItems) {
     const isInCurrentBuilding = Boolean(indoorNode);
     return {
       ...item,
-      id: isInCurrentBuilding ? indoorNodeId : item.id,
+      // Keep original id (room_id) as the item's identity for dedup —
+      // two rooms with the same indoor_node must remain distinct entries.
+      // Store the resolved node id separately for routing.
+      resolvedNodeId: isInCurrentBuilding ? indoorNodeId : null,
       floor: indoorNode?.floor || item.floor,
       routeNode: item.routeNode || item.id,
       outdoor: !isInCurrentBuilding,
     };
   });
 
+  // Deduplicate by name — distinct room names always produce distinct entries
   return searchOptions
-    .filter((item, index, all) => all.findIndex((o) => o.id === item.id) === index)
+    .filter((item, index, all) => all.findIndex((o) => o.name === item.name) === index)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

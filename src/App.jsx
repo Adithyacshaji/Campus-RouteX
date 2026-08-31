@@ -1462,14 +1462,18 @@ function MainApp() {
 
     // The selectable labels can carry stale or display-only floor metadata.
     // Route decisions must come from the actual indoor graph nodes instead.
-    const sourceFloor = normalizeFloor(ACTIVE_INDOOR_NODES[normalizeIndoorKey(source.id)]?.floor || source.floor);
-    const targetFloor = normalizeFloor(ACTIVE_INDOOR_NODES[normalizeIndoorKey(target.id)]?.floor || target.floor);
+    // resolvedNodeId is the actual indoor graph node set by buildIndoorOptions;
+    // fall back to id for backwards compatibility.
+    const sourceNodeId = normalizeIndoorKey(source.resolvedNodeId || source.id);
+    const targetNodeId = normalizeIndoorKey(target.resolvedNodeId || target.id);
+    const sourceFloor = normalizeFloor(ACTIVE_INDOOR_NODES[sourceNodeId]?.floor || source.floor);
+    const targetFloor = normalizeFloor(ACTIVE_INDOOR_NODES[targetNodeId]?.floor || target.floor);
     const selectedTarget = { ...target, type: "room", floor: targetFloor };
-    setIndoorStart({ name: source.name, nearestNode: source.id, floor: sourceFloor });
+    setIndoorStart({ name: source.name, nearestNode: sourceNodeId, floor: sourceFloor });
     setIndoorDestination(selectedTarget);
     setIndoorUserLocation({
-      position: ACTIVE_INDOOR_NODES[normalizeIndoorKey(source.id)].position,
-      nearestNode: source.id,
+      position: ACTIVE_INDOOR_NODES[sourceNodeId].position,
+      nearestNode: sourceNodeId,
       floor: sourceFloor
     });
     setCurrentFloor(sourceFloor);
@@ -1482,8 +1486,8 @@ function MainApp() {
     }
 
           const { path: path } = await routeIndoor(
-        { building: isChavaraBuilding(currentBuilding) ? "chavara" : "stmarys", startNodeId: normalizeIndoorKey(source.id), endNodeId: normalizeIndoorKey(target.id) },
-        { startNode: normalizeIndoorKey(source.id), endNode: normalizeIndoorKey(target.id), edges: ACTIVE_INDOOR_EDGES, nodes: ACTIVE_INDOOR_NODES }
+        { building: isChavaraBuilding(currentBuilding) ? "chavara" : "stmarys", startNodeId: sourceNodeId, endNodeId: targetNodeId },
+        { startNode: sourceNodeId, endNode: targetNodeId, edges: ACTIVE_INDOOR_EDGES, nodes: ACTIVE_INDOOR_NODES }
       );
       
     if (!path.length) {
