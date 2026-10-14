@@ -9,18 +9,32 @@
  */
 export function getDistanceToRoute(route, location) {
   if (!location || !route || route.length < 2) {
-    return { point: route ? route[0] : null, distanceMeters: Infinity, segmentIndex: 0 };
+    const fallbackPoint = route && route[0]
+      ? (Array.isArray(route[0]) ? route[0] : [route[0].lat, route[0].lng])
+      : null;
+    return { point: fallbackPoint, distanceMeters: Infinity, segmentIndex: 0 };
+  }
+
+  const userLat = location.lat !== undefined ? location.lat : location[0];
+  const userLng = location.lng !== undefined ? location.lng : location[1];
+
+  if (userLat === undefined || userLng === undefined || Number.isNaN(userLat) || Number.isNaN(userLng)) {
+    const fallbackPoint = Array.isArray(route[0]) ? route[0] : [route[0].lat, route[0].lng];
+    return { point: fallbackPoint, distanceMeters: Infinity, segmentIndex: 0 };
   }
 
   const latScale = 111320; // roughly meters per degree latitude
-  const lngScale = latScale * Math.cos(location.lat * Math.PI / 180);
-  const userPoint = [location.lat, location.lng];
+  const lngScale = latScale * Math.cos((userLat * Math.PI) / 180);
+  const userPoint = [userLat, userLng];
   
-  let closest = { distanceSquared: Infinity, segment: 0, point: route[0] };
+  const firstPoint = Array.isArray(route[0]) ? route[0] : [route[0].lat, route[0].lng];
+  let closest = { distanceSquared: Infinity, segment: 0, point: firstPoint };
 
   for (let index = 0; index < route.length - 1; index += 1) {
-    const start = route[index];
-    const end = route[index + 1];
+    const s = route[index];
+    const e = route[index + 1];
+    const start = Array.isArray(s) ? s : [s.lat, s.lng];
+    const end = Array.isArray(e) ? e : [e.lat, e.lng];
     
     const dx = (end[1] - start[1]) * lngScale;
     const dy = (end[0] - start[0]) * latScale;

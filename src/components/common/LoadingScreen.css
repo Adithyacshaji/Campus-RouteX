@@ -9,16 +9,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.82);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: background 0.9s ease, backdrop-filter 0.9s ease, -webkit-backdrop-filter 0.9s ease;
+  background: #F8F9FA;
+  opacity: 1;
+  transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), background 0.45s ease;
+}
+
+#kiosk-app.theme-dark .minimal-loading-overlay {
+  background: #0f172a;
 }
 
 .minimal-loading-overlay--fade {
-  background: rgba(15, 23, 42, 0);
-  backdrop-filter: blur(0px);
-  -webkit-backdrop-filter: blur(0px);
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -27,7 +28,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  color: #ffffff;
+  color: var(--text-main, #1A1A1A);
   padding: 1.5rem;
 }
 
@@ -37,13 +38,12 @@
   height: 140px;
   object-fit: contain;
   margin-bottom: 1rem;
-  /* ease-in curve creates the feeling of flying forward, accelerating into the logo */
-  transition: transform 0.9s cubic-bezier(0.5, 0, 1, 0.5), opacity 0.4s ease-in 0.5s;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease-out;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
 }
 
 .loading-logo--zoom-fade {
-  transform: scale(1.1);
+  transform: scale(1.08);
   opacity: 0;
 }
 
@@ -51,7 +51,7 @@
 .loading-line-container {
   width: 200px;
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-color, rgba(0, 0, 0, 0.08));
   border-radius: 4px;
   margin-top: 1.5rem;
   overflow: hidden;
@@ -61,7 +61,7 @@
 .loading-line {
   width: 50%;
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  background: var(--text-main, #1A1A1A);
   border-radius: 4px;
   position: absolute;
   left: -50%;
@@ -90,16 +90,12 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   margin: 0 0 0.35rem 0;
-  background: linear-gradient(90deg, #60a5fa, #a78bfa);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: #f8fafc; /* Fallback */
+  color: var(--text-main, #1A1A1A);
 }
 
 .minimal-status {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: var(--text-muted, #6B7280);
   font-weight: 400;
   margin: 0;
   letter-spacing: 0.02em;
@@ -109,7 +105,7 @@
   margin-top: 1.5rem;
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--text-sub, #9CA3AF);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
@@ -121,5 +117,5 @@
 }
 
 .minimal-skip-btn:hover {
-  color: #94a3b8;
+  color: var(--text-main, #1A1A1A);
 }

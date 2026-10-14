@@ -14,21 +14,42 @@ export const useDatabase = () => {
   return context;
 };
 
+const DB_CACHE_KEY = 'campus_routex_db_cache_v2';
+
+function loadCachedDb() {
+  try {
+    const raw = localStorage.getItem(DB_CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveDbCache(data) {
+  try {
+    localStorage.setItem(DB_CACHE_KEY, JSON.stringify(data));
+  } catch (e) {
+    // ignore quota / private browsing errors
+  }
+}
+
 export const DatabaseProvider = ({ children }) => {
-  const [loading, setLoading] = useState(true);
+  const cached = useMemo(() => loadCachedDb(), []);
+  const [loading, setLoading] = useState(!cached);
   const [usingFallback, setUsingFallback] = useState(!isSupabaseConfigured);
 
-  // States — all start empty; populated exclusively from Supabase on load
-  const [locations, setLocations] = useState([]);
-  const [nodes, setNodes] = useState({});
-  const [edges, setEdges] = useState([]);
-  const [indoorNodes, setIndoorNodes] = useState({});
-  const [indoorEdges, setIndoorEdges] = useState([]);
-  const [chavaraIndoorNodes, setChavaraIndoorNodes] = useState({});
-  const [chavaraIndoorEdges, setChavaraIndoorEdges] = useState([]);
-  const [qrLocations, setQrLocations] = useState([]);
-  const [bottomSheetData, setBottomSheetData] = useState({ departments: [], classrooms: [] });
-  const [dbRooms, setDbRooms] = useState([]);
+  // States — initialized from localStorage cache if available for instant startup
+  const [locations, setLocations] = useState(() => cached?.locations || []);
+  const [nodes, setNodes] = useState(() => cached?.nodes || {});
+  const [edges, setEdges] = useState(() => cached?.edges || []);
+  const [indoorNodes, setIndoorNodes] = useState(() => cached?.indoorNodes || {});
+  const [indoorEdges, setIndoorEdges] = useState(() => cached?.indoorEdges || []);
+  const [chavaraIndoorNodes, setChavaraIndoorNodes] = useState(() => cached?.chavaraIndoorNodes || {});
+  const [chavaraIndoorEdges, setChavaraIndoorEdges] = useState(() => cached?.chavaraIndoorEdges || []);
+  const [qrLocations, setQrLocations] = useState(() => cached?.qrLocations || []);
+  const [bottomSheetData, setBottomSheetData] = useState(() => cached?.bottomSheetData || { departments: [], classrooms: [] });
+  const [dbRooms, setDbRooms] = useState(() => cached?.dbRooms || []);
 
   // Re-fetch individual tables to guarantee alignment with realtime updates
   const fetchLocations = async () => {
@@ -241,7 +262,7 @@ export const DatabaseProvider = ({ children }) => {
     }
     
     try {
-      setLoading(true);
+      if (!cached) setLoading(true);
       await Promise.all([
         fetchLocations(),
         fetchOutdoorNodes(),
@@ -254,12 +275,30 @@ export const DatabaseProvider = ({ children }) => {
       ]);
       setUsingFallback(false);
     } catch (err) {
-      console.error("Failed to load data from Supabase. Falling back to static data.", err);
+      console.error("Failed to load data from Supabase. Falling back to cached/static data.", err);
       setUsingFallback(true);
     } finally {
       setLoading(false);
     }
   };
+
+  // Stale-while-revalidate: save fresh snapshot to cache when loaded
+  useEffect(() => {
+    if (!loading && locations.length > 0) {
+      saveDbCache({
+        locations,
+        nodes,
+        edges,
+        indoorNodes,
+        indoorEdges,
+        chavaraIndoorNodes,
+        chavaraIndoorEdges,
+        qrLocations,
+        bottomSheetData,
+        dbRooms
+      });
+    }
+  }, [loading, locations, nodes, edges, indoorNodes, indoorEdges, chavaraIndoorNodes, chavaraIndoorEdges, qrLocations, bottomSheetData, dbRooms]);
 
   useEffect(() => {
     loadAllData();

@@ -431,6 +431,12 @@ body,
 .user-location-marker {
   background: transparent;
   border: none;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
+}
+
+.leaflet-zoom-anim .user-location-marker {
+  transition: none !important;
 }
 
 .user-dot-wrap {
@@ -440,6 +446,11 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.user-heading-beam,
+.user-heading-arrow {
+  transition: transform 0.3s ease-out;
 }
 
 .user-accuracy-ring {

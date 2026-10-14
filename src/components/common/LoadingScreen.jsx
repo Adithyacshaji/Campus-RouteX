@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./LoadingScreen.css";
 
 export default function LoadingScreen({ isLoading, gpsStatus, onExplore }) {
-  const [shouldRender, setShouldRender] = useState(true);
+  const [shouldRender, setShouldRender] = useState(isLoading);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [showSkip, setShowSkip] = useState(false);
   const [tapCount, setTapCount] = useState(0);
@@ -25,18 +25,35 @@ export default function LoadingScreen({ isLoading, gpsStatus, onExplore }) {
     }
   };
 
+  // Show skip button quickly (after 800ms) so user is never trapped
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSkip(true);
-    }, 3000);
+    }, 800);
     return () => clearTimeout(timer);
   }, []);
 
+  // Smooth exit fade animation when loading completes
   useEffect(() => {
-    if (!isLoading) {
-      setShouldRender(false);
+    if (!isLoading && shouldRender) {
+      setIsFadingOut(true);
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+      }, 450); // Matches CSS transition duration
+      return () => clearTimeout(timer);
+    } else if (isLoading) {
+      setShouldRender(true);
+      setIsFadingOut(false);
     }
-  }, [isLoading]);
+  }, [isLoading, shouldRender]);
+
+  const handleSkip = () => {
+    setIsFadingOut(true);
+    setTimeout(() => {
+      setShouldRender(false);
+    }, 350);
+    if (onExplore) onExplore();
+  };
 
   if (!shouldRender) return null;
 
@@ -60,7 +77,7 @@ export default function LoadingScreen({ isLoading, gpsStatus, onExplore }) {
     <div className={`minimal-loading-overlay ${isFadingOut ? "minimal-loading-overlay--fade" : ""}`}>
       <div className="minimal-loading-content">
         <img 
-          src="/logo.png" 
+          src="/logo.png"
           alt="Campus Compass Logo" 
           className={`loading-logo ${isFadingOut ? "loading-logo--zoom-fade" : ""}`} 
           onClick={handleLogoTap}
@@ -76,10 +93,7 @@ export default function LoadingScreen({ isLoading, gpsStatus, onExplore }) {
         {showSkip && (
           <button 
             className="minimal-skip-btn" 
-            onClick={() => {
-              setShouldRender(false);
-              if (onExplore) onExplore();
-            }}
+            onClick={handleSkip}
           >
             Skip to map
           </button>

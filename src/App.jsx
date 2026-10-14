@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import { Home, Building } from "lucide-react";
 
-const CampusMap = lazy(() => import("./components/map/CampusMap"));
+// Preload CampusMap chunk immediately so map is warm and ready under the splash screen
+const campusMapPromise = import("./components/map/CampusMap");
+const CampusMap = lazy(() => campusMapPromise);
 
 
 import SearchBar from "./components/common/SearchBar";
@@ -32,14 +34,14 @@ import IndoorRoutingCard from "./components/routing/IndoorRoutingCard";
 
 import { findNearestLocation } from "./utils/findNearestLocation";
 import { findNearestQRLocation } from "./utils/findNearestQRLocation";
-import { findNearestStMarysEntrance, findNearestBuildingEntrance, findNearestChavaraEntrance, findBestChavaraEntranceByPath } from "./utils/findNearestEntrance";
+import { findNearestStMarysEntrance, findNearestBuildingEntrance, findNearestChavaraEntrance, findBestChavaraEntranceByPath, ST_MARYS_ENTRANCE_NODES, CHAVARA_ENTRANCE_NODES } from "./utils/findNearestEntrance";
 import { calculateHaversineDistance } from "./utils/haversine";
 import { getDistanceToRoute } from "./utils/distanceToRoute";
 import { FLOOR_IMAGES, CHAVARA_FLOOR_IMAGES } from "./data/floorImages";
 
 import LoadingScreen from "./components/common/LoadingScreen";
 import YDCard from "./components/common/YDCard";
-import { getBuildingDisplayName } from "./utils/buildingPolygons";
+import { getBuildingDisplayName, CHAVARA_POLYGON, ST_MARYS_POLYGON, isInsidePolygon } from "./utils/buildingPolygons";
 import LocationAlertCard from "./components/common/LocationAlertCard";
 import { SignalLow } from "lucide-react";
 import { routeIndoor, routeOutdoor, geofence } from "./utils/edgeFunctions";
@@ -158,6 +160,41 @@ function isChavaraBuilding(building) {
   if (!building) return false;
   const b = building.toLowerCase();
   return b.includes("chavara");
+}
+
+function getDestinationBuildingKey(dest) {
+  if (!dest) return null;
+  const b = (dest.building || "").toLowerCase();
+  const r = (dest.routeNode || "").toLowerCase();
+  const id = (dest.id || "").toLowerCase();
+  const name = (dest.name || "").toLowerCase();
+  const indoor = (dest.indoorNode || "").toLowerCase();
+
+  if (
+    b.includes("chavara") ||
+    r === "chavara" ||
+    r === "p3" ||
+    id === "chavara" ||
+    name.includes("chavara") ||
+    indoor.startsWith("ch_")
+  ) {
+    return "chavara";
+  }
+  if (
+    b.includes("mary") ||
+    b.includes("stmarys") ||
+    r === "st-marys-block" ||
+    ["g", "b1", "b2"].includes(r) ||
+    id === "st-marys-block" ||
+    name.includes("st mary") ||
+    name.includes("st. mary") ||
+    dest.type === "room" ||
+    dest.type === "faculty" ||
+    Boolean(dest.indoorNode)
+  ) {
+    return "stmarys";
+  }
+  return null;
 }
 
 function getIndoorEntranceNode(building, outdoorEntrance, _userLoc = null) {
@@ -336,6 +373,7 @@ function MainApp() {
 
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [minLoadingTimePassed, setMinLoadingTimePassed] = useState(false);
+  const [forceDismissLoading, setForceDismissLoading] = useState(false);
 
 
 
@@ -358,35 +396,46 @@ function MainApp() {
   // so we don't show the modal again after the user dismisses it.
   const buildingCheckDoneRef = useRef(false);
 
+  // Snappy splash duration (600ms minimum for smooth branding presentation)
   useEffect(() => {
     const timer = setTimeout(() => setMinLoadingTimePassed(true), 3000);
     return () => clearTimeout(timer);
   }, []);
 
+  // Hard safety timeout: under no circumstance keep splash longer than 1400ms
   useEffect(() => {
-    console.log("Current Location:", location);
-    if ((location || USE_DEBUG_LOCATION || ["ok", "poor", "failed", "timeout"].includes(gpsStatus)) && minLoadingTimePassed) {
-      const timer = setTimeout(async () => {
-        setIsAppLoading(false);
+    const safetyTimer = setTimeout(() => {
+      setIsAppLoading(false);
+    }, 3500);
+    return () => clearTimeout(safetyTimer);
+  }, []);
 
-        // Run building detection once, right when the loading screen hides
-        if (!buildingCheckDoneRef.current) {
-          const checkLoc = USE_DEBUG_LOCATION ? USER_LOCATION : (location || null);
-          if (checkLoc?.lat && checkLoc?.lng) {
-            // Try edge function first, fall back to local polygon
-            const result = await geofence(checkLoc.lat, checkLoc.lng);
-            const detected = result?.zone && result.zone !== 'campus' ? result.zone : null;
-            if (detected) {
-              buildingCheckDoneRef.current = true;
-              setDetectedBuilding(detected);
-              setShowBuildingModal(true);
-            }
-          }
-        }
-      }, 800);
-      return () => clearTimeout(timer);
+  // Dismiss splash as soon as minimum branding time passes without blocking on GPS
+  useEffect(() => {
+    if (minLoadingTimePassed) {
+      setIsAppLoading(false);
     }
-  }, [location, gpsStatus, minLoadingTimePassed]);
+  }, [minLoadingTimePassed]);
+
+  // Run building detection once asynchronously as soon as location arrives, without delaying the splash screen
+  useEffect(() => {
+    if (buildingCheckDoneRef.current) return;
+    const checkLoc = USE_DEBUG_LOCATION ? USER_LOCATION : (location || null);
+    if (checkLoc?.lat && checkLoc?.lng) {
+      buildingCheckDoneRef.current = true;
+      geofence(checkLoc.lat, checkLoc.lng)
+        .then((result) => {
+          const detected = result?.zone && result.zone !== 'campus' ? result.zone : null;
+          if (detected) {
+            setDetectedBuilding(detected);
+            setShowBuildingModal(true);
+          }
+        })
+        .catch((err) => {
+          console.warn("Geofence check error:", err);
+        });
+    }
+  }, [location]);
 
   // Show subtle accuracy badge only when GPS is genuinely terrible (>80m)
   useEffect(() => {
@@ -551,29 +600,78 @@ function MainApp() {
     navigationStateRef.current = { navStep, destination, selectedEntrance };
   }, [navStep, destination, selectedEntrance]);
 
-  useEffect(() => subscribeToLocation((position) => {
+  const checkEntranceArrival = useCallback((position) => {
+    if (!position) return;
+    const pos = Array.isArray(position) ? { lat: position[0], lng: position[1] } : position;
+    if (pos.lat === undefined || pos.lng === undefined) return;
+
     const state = navigationStateRef.current;
-    if (entranceMilestoneRef.current.reached || state.navStep !== STEPS.OUTDOOR_NAVIGATING || !isIndoorDestination(state.destination) || !state.selectedEntrance || !NODES[state.selectedEntrance]) return;
+    if (entranceMilestoneRef.current.reached || state.navStep !== STEPS.OUTDOOR_NAVIGATING || !state.destination) return;
 
-    const [lat, lng] = NODES[state.selectedEntrance];
-    const distance = gpsDistanceMeters(position, { lat, lng });
-    entranceMilestoneRef.current.consecutiveFixes = distance <= ST_MARYS_GEOFENCE_METERS
-      ? entranceMilestoneRef.current.consecutiveFixes + 1
-      : 0;
+    const targetBuilding = getDestinationBuildingKey(state.destination);
+    if (!targetBuilding) return;
 
-    if (entranceMilestoneRef.current.consecutiveFixes < ENTRANCE_CONFIRMATION_FIXES) return;
-    entranceMilestoneRef.current.reached = true;
-    setNavStep((step) => step === STEPS.OUTDOOR_NAVIGATING ? STEPS.AT_BUILDING : step);
-    setShowNavigationCard(true);
-  }), [subscribeToLocation, gpsDistanceMeters]);
+    const entranceNodeIds = targetBuilding === "chavara" ? CHAVARA_ENTRANCE_NODES : ST_MARYS_ENTRANCE_NODES;
+    let minDistance = Infinity;
+    let closestEntrance = state.selectedEntrance || entranceNodeIds[0];
 
-  // Outdoor destination proximity — automatically show the arrival card when
-  // the user walks within OUTDOOR_ARRIVAL_GEOFENCE_METERS of the destination.
+    for (const nodeId of entranceNodeIds) {
+      const coords = NODES[nodeId];
+      if (coords) {
+        const c = Array.isArray(coords) ? { lat: coords[0], lng: coords[1] } : coords;
+        const d = gpsDistanceMeters(pos, c);
+        if (d < minDistance) {
+          minDistance = d;
+          closestEntrance = nodeId;
+        }
+      }
+    }
+
+    const isInsideBuildingZone = targetBuilding === "chavara"
+      ? isInsidePolygon(pos.lat, pos.lng, CHAVARA_POLYGON)
+      : isInsidePolygon(pos.lat, pos.lng, ST_MARYS_POLYGON);
+
+    const bCenter = targetBuilding === "chavara"
+      ? (NODES.chavara || [10.356112, 76.212578])
+      : (NODES["st-marys-block"] || NODES.g || [10.357870, 76.212652]);
+    const bCenterCoords = Array.isArray(bCenter) ? { lat: bCenter[0], lng: bCenter[1] } : bCenter;
+    const distToBuildingCenter = bCenterCoords ? gpsDistanceMeters(pos, bCenterCoords) : Infinity;
+
+    // Generous threshold of 35 meters to entrance or building footprint/center
+    const BUILDING_ARRIVAL_THRESHOLD_METERS = 35;
+    const isNearBuilding = isInsideBuildingZone || minDistance <= BUILDING_ARRIVAL_THRESHOLD_METERS || distToBuildingCenter <= BUILDING_ARRIVAL_THRESHOLD_METERS;
+
+    if (isNearBuilding) {
+      entranceMilestoneRef.current.consecutiveFixes += 1;
+      if (entranceMilestoneRef.current.consecutiveFixes >= 1) {
+        entranceMilestoneRef.current.reached = true;
+        setSelectedEntrance(closestEntrance);
+        setNavStep((step) => step === STEPS.OUTDOOR_NAVIGATING ? STEPS.AT_BUILDING : step);
+        setShowNavigationCard(true);
+      }
+    } else if (minDistance > 45 && distToBuildingCenter > 45 && !isInsideBuildingZone) {
+      entranceMilestoneRef.current.consecutiveFixes = 0;
+    }
+  }, [NODES, gpsDistanceMeters]);
+
+  useEffect(() => {
+    return subscribeToLocation((position) => {
+      checkEntranceArrival(position);
+    });
+  }, [subscribeToLocation, checkEntranceArrival]);
+
+  useEffect(() => {
+    if (navStep === STEPS.OUTDOOR_NAVIGATING && locationToUse) {
+      checkEntranceArrival(locationToUse);
+    }
+  }, [navStep, locationToUse, checkEntranceArrival]);
+
+  // Outdoor destination proximity for non-building landmarks (canteen, auditorium, etc.)
   useEffect(() => subscribeToLocation((position) => {
     const state = navigationStateRef.current;
     if (outdoorArrivalRef.current.reached) return;
     if (state.navStep !== STEPS.OUTDOOR_NAVIGATING) return;
-    if (isIndoorDestination(state.destination)) return; // handled by the indoor geofence above
+    if (getDestinationBuildingKey(state.destination)) return; // handled by building entrance check above
     if (!state.destination) return;
 
     const destNodeId = state.destination.routeNode || state.destination.id;
@@ -590,7 +688,7 @@ function MainApp() {
     outdoorArrivalRef.current.reached = true;
     setNavStep((step) => step === STEPS.OUTDOOR_NAVIGATING ? STEPS.OUTDOOR_ARRIVED : step);
     setShowNavigationCard(true);
-  }), [subscribeToLocation, gpsDistanceMeters]);
+  }), [subscribeToLocation, gpsDistanceMeters, NODES]);
 
   const triggerIndoorFallback = () => {
     gpsFallbackShown.current = true;
@@ -944,9 +1042,7 @@ function MainApp() {
         { startNode: nearestNode, endNode: end, edges: EDGES, nodes: NODES }
       );
             
-      const userPos = [startLocation.lat, startLocation.lng];
-      const fullRoute = graphRoute.length > 0 ? [userPos, ...graphRoute] : graphRoute;
-      setRoute(fullRoute);
+      setRoute(graphRoute);
       if (destPos) {
         setMapCenter({ id: `dest-focus-${Date.now()}`, position: destPos });
       }
@@ -1018,7 +1114,7 @@ function MainApp() {
 
     console.log("End node:", end);
 
-        const { path: nodePath, coordinates: graphRoute } = await routeOutdoor(
+    const { path: nodePath, coordinates: graphRoute } = await routeOutdoor(
       { startNodeId: nearestNode, endNodeId: end },
       { startNode: nearestNode, endNode: end, edges: EDGES, nodes: NODES }
     );
@@ -1026,21 +1122,14 @@ function MainApp() {
     console.log("PATH RESULT:", nodePath);
     console.log("graphRoute:", graphRoute);
 
-    // Prepend user's actual position so the route line starts exactly at the user dot
-    const userPos = routeStartLocation
-      ? [routeStartLocation.lat, routeStartLocation.lng]
-      : null;
-    const fullRoute = userPos && graphRoute.length > 0
-      ? [userPos, ...graphRoute]
-      : graphRoute;
-
-    setRoute(fullRoute);
+    // Set the route strictly to the campus walkway graph without prepending off-path user coordinates
+    setRoute(graphRoute);
     setIsOutdoorNavigating(true);
     // Convert the single search bar to the YD Card now that navigation is live
     setHasSearched(true);
     pushState(STEPS.OUTDOOR_NAVIGATING);
-    if (userPos) {
-      setMapCenter({ id: `user-focus-${Date.now()}`, position: userPos });
+    if (routeStartLocation) {
+      setMapCenter({ id: `user-focus-${Date.now()}`, position: [routeStartLocation.lat, routeStartLocation.lng] });
     }
   };
 
@@ -1056,17 +1145,25 @@ function MainApp() {
     // Do not reroute if the user is already near their destination/entrance.
     // This prevents conflicting with the "Have you arrived?" cards.
     let isNearDestination = false;
-    if (state.destination) {
-      if (isIndoorDestination(state.destination) && state.selectedEntrance && NODES[state.selectedEntrance]) {
-        const [lat, lng] = NODES[state.selectedEntrance];
-        isNearDestination = gpsDistanceMeters(position, { lat, lng }) <= ST_MARYS_GEOFENCE_METERS;
-      } else {
-        const destNodeId = state.destination.routeNode || state.destination.id;
-        const destNode = destNodeId ? NODES[destNodeId] : null;
-        if (destNode) {
-          const [lat, lng] = destNode;
-          isNearDestination = gpsDistanceMeters(position, { lat, lng }) <= OUTDOOR_ARRIVAL_GEOFENCE_METERS;
+    const targetBuilding = getDestinationBuildingKey(state.destination);
+    if (targetBuilding) {
+      const entranceNodeIds = targetBuilding === "chavara" ? CHAVARA_ENTRANCE_NODES : ST_MARYS_ENTRANCE_NODES;
+      for (const nodeId of entranceNodeIds) {
+        const coords = NODES[nodeId];
+        if (coords) {
+          const c = Array.isArray(coords) ? { lat: coords[0], lng: coords[1] } : coords;
+          if (gpsDistanceMeters(position, c) <= 40) {
+            isNearDestination = true;
+            break;
+          }
         }
+      }
+    } else if (state.destination) {
+      const destNodeId = state.destination.routeNode || state.destination.id;
+      const destNode = destNodeId ? NODES[destNodeId] : null;
+      if (destNode) {
+        const [lat, lng] = destNode;
+        isNearDestination = gpsDistanceMeters(position, { lat, lng }) <= OUTDOOR_ARRIVAL_GEOFENCE_METERS;
       }
     }
 
@@ -1076,9 +1173,11 @@ function MainApp() {
     }
 
     const { distanceMeters } = getDistanceToRoute(route, position);
-    if (distanceMeters > 10) {
+    // User is considered aligned with the path within 25m (matches snap tolerance).
+    // Only recalculate if user is genuinely off-track (> 25m) for at least 3 consecutive fixes.
+    if (distanceMeters > 25) {
       offRouteRef.current += 1;
-      if (offRouteRef.current >= 2) {
+      if (offRouteRef.current >= 3) {
         console.log("User off route by", distanceMeters, "m. Recalculating...");
         offRouteRef.current = 0;
         startOutdoorNavigation(null, position);
@@ -1086,26 +1185,26 @@ function MainApp() {
     } else {
       offRouteRef.current = 0;
     }
-  }), [subscribeToLocation, route, gpsDistanceMeters]);
+  }), [subscribeToLocation, route, gpsDistanceMeters, NODES]);
 
 
   const continueFromOutdoorEntrance = async () => {
+    const targetBuilding = getDestinationBuildingKey(destination) || (isChavaraBuilding(destination?.building) ? "chavara" : "stmarys");
     // For cross-building nav: selectedEntrance is set by startOutdoorNavigation.
     // Derive a fallback from the outdoor route endpoint if it's somehow missing.
     const effectiveEntrance = selectedEntrance || (
-      isChavaraBuilding(destination?.building)
+      targetBuilding === "chavara"
         ? "chavara"
         : (outdoorEntranceFloor["g"] ? "g" : "g")
     );
     const entryFloor = outdoorEntranceFloor[effectiveEntrance] || "G";
-    const startNode = getIndoorEntranceNode(destination?.building, effectiveEntrance, locationToUse);
+    const startNode = getIndoorEntranceNode(targetBuilding, effectiveEntrance, locationToUse);
     const endNode = destination?.indoorNode || destination?.id;
-    if (!startNode || !endNode) return;
-
-    const targetBuilding = isChavaraBuilding(destination?.building) ? "chavara" : "stmarys";
 
     // Switch state for map rendering
     setCurrentBuilding(targetBuilding);
+    setCurrentFloor(entryFloor);
+    setMapMode("INDOOR");
 
     const targetNodes = targetBuilding === "chavara" ? CHAVARA_INDOOR_NODES : INDOOR_NODES;
     const targetEdges = targetBuilding === "chavara" ? CHAVARA_INDOOR_EDGES : INDOOR_EDGES;
@@ -1143,13 +1242,23 @@ function MainApp() {
       floor: entryFloor,
     };
     setIndoorStart(start);
-    setIndoorUserLocation({
-      position: tempNodes[cleanStartNode].position,
-      nearestNode: cleanStartNode,
-      floor: entryFloor,
-    });
-    setCurrentFloor(entryFloor);
-    setMapMode("INDOOR");
+    if (tempNodes[cleanStartNode]?.position) {
+      setIndoorUserLocation({
+        position: tempNodes[cleanStartNode].position,
+        nearestNode: cleanStartNode,
+        floor: entryFloor,
+      });
+    }
+
+    // If destination is a pure building destination (no specific indoor room target)
+    if (!destination?.indoorNode && !destination?.floor && destination?.type !== "room" && destination?.type !== "faculty") {
+      setIsOutdoorNavigating(false);
+      setRoute([]);
+      pushState(STEPS.COMPLETED);
+      return;
+    }
+
+    if (!cleanStartNode || !cleanEndNode) return;
 
     // Stay on the entrance floor if the destination is there; otherwise use
     // the existing stairs/lift workflow from this exact entrance.
@@ -1158,7 +1267,7 @@ function MainApp() {
       return;
     }
 
-        const { path: indoorPath } = await routeIndoor(
+    const { path: indoorPath } = await routeIndoor(
       { building: targetBuilding, startNodeId: cleanStartNode, endNodeId: cleanEndNode },
       { startNode: cleanStartNode, endNode: cleanEndNode, edges: tempEdges, nodes: tempNodes }
     );
@@ -2110,7 +2219,9 @@ function MainApp() {
 
   const hasBottomCard = (showNavigationCard && (
     navStep === STEPS.AT_BUILDING ||
-    navStep === STEPS.COMPLETED
+    navStep === STEPS.COMPLETED ||
+    navStep === STEPS.OUTDOOR_ARRIVED ||
+    navStep === STEPS.OUTDOOR_REACHED
   )) || (
       destination && navStep === STEPS.OUTDOOR_ROUTE
     );
@@ -2125,9 +2236,12 @@ function MainApp() {
 
     <main className="app-shell flex flex-col h-screen overflow-hidden bg-gray-100">
       <LoadingScreen
-        isLoading={isAppLoading || dbLoading}
+        isLoading={!forceDismissLoading && isAppLoading}
         gpsStatus={gpsStatus}
-        onExplore={() => setIsAppLoading(false)}
+        onExplore={() => {
+          setForceDismissLoading(true);
+          setIsAppLoading(false);
+        }}
       />
 
       {/* ── Map Container Wrapper ────────────────────────────────────────────── */}
@@ -2615,11 +2729,22 @@ function MainApp() {
         {
           showNavigationCard &&
           navStep === STEPS.AT_BUILDING &&
-          isIndoorDestination(destination) &&
+          Boolean(getDestinationBuildingKey(destination)) &&
           (
             <NavigationCard>
               <p>
-                Have you reached the <strong>{outdoorEntranceFloor[selectedEntrance] || "Ground"} floor entrance</strong> of <strong>{isChavaraBuilding(destination?.building) ? "St Chavara Block" : "St Mary's Block"}</strong>?
+                Have you reached the{" "}
+                <strong>
+                  {outdoorEntranceFloor[selectedEntrance] === "G" || !outdoorEntranceFloor[selectedEntrance]
+                    ? "Ground"
+                    : outdoorEntranceFloor[selectedEntrance]} floor entrance
+                </strong>{" "}
+                of{" "}
+                <strong>
+                  {getDestinationBuildingKey(destination) === "chavara"
+                    ? "St Chavara Block"
+                    : "St Mary's Block"}
+                </strong>?
               </p>
               <div className="button-row">
                 <button
@@ -2632,9 +2757,11 @@ function MainApp() {
                 </button>
                 <button
                   className="secondary-action"
-                  onClick={() =>
-                    setNavStep(STEPS.OUTDOOR_ROUTE)
-                  }
+                  onClick={() => {
+                    entranceMilestoneRef.current.reached = false;
+                    entranceMilestoneRef.current.consecutiveFixes = 0;
+                    setNavStep(STEPS.OUTDOOR_NAVIGATING);
+                  }}
                 >
                   Not yet
                 </button>
@@ -2820,7 +2947,7 @@ function MainApp() {
         {
           showNavigationCard &&
           navStep === STEPS.AT_BUILDING &&
-          !isIndoorDestination(destination) && (
+          !getDestinationBuildingKey(destination) && (
             <NavigationCard>
               <p>
                 Follow the highlighted route to{" "}
@@ -2841,7 +2968,7 @@ function MainApp() {
         {
           showNavigationCard &&
           navStep === STEPS.OUTDOOR_ARRIVED &&
-          !isIndoorDestination(destination) && (
+          !getDestinationBuildingKey(destination) && (
             <NavigationCard>
               <p>
                 You have arrived near <strong>{destination?.name || destination?.id}</strong>.
@@ -2860,7 +2987,7 @@ function MainApp() {
         {
           showNavigationCard &&
           navStep === STEPS.OUTDOOR_REACHED &&
-          !isIndoorDestination(destination) && (
+          !getDestinationBuildingKey(destination) && (
 
             <NavigationCard className="arrival-card">
 

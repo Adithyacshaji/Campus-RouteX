@@ -881,16 +881,20 @@ function CampusMap({
 
 // Finds the closest point on the planned polyline and drops the already passed
 // segments. Equirectangular coordinates are accurate at campus scale.
-function trimRouteFromLocation(route, location) {
-  if (!location || route.length < 2) return route;
+function trimRouteFromLocation(route, location, snapTolerance = 22) {
+  if (!location || !route || route.length < 2) return route || [];
   
   const { point, distanceMeters, segmentIndex } = getDistanceToRoute(route, location);
 
-  // Do not distort the route if the user is far away from it (for example a
-  // poor GPS reading or an intentional detour).
-  if (distanceMeters > 8) return route;
+  // If the user is within snapTolerance meters of the route (e.g. 22m),
+  // start the remaining route cleanly at their snapped point on the path.
+  if (distanceMeters <= snapTolerance) {
+    return [point, ...route.slice(segmentIndex + 1)];
+  }
   
-  return [point, ...route.slice(segmentIndex + 1)];
+  // If the user is further away (off route), return the original planned route
+  // without distorting or drawing any path from the user's off-path location.
+  return route;
 }
 
 // ─── Helper sub-components ────────────────────────────────────────────────────
@@ -1270,9 +1274,23 @@ function LiveIndoorUserMarker({ indoorUserLocation, currentFloor, subscribeToLoc
   );
 }
 
+const SNAP_TOLERANCE_METERS = 22;
+
 function LiveOutdoorFeatures({ subscribeToLocation, currentLocation, initialHeading, route, mapBearing }) {
   const [liveLocation, setLiveLocation] = useState(currentLocation);
   const [liveHeading, setLiveHeading] = useState(initialHeading || 0);
+
+  useEffect(() => {
+    if (currentLocation) {
+      setLiveLocation(currentLocation);
+    }
+  }, [currentLocation]);
+
+  useEffect(() => {
+    if (initialHeading !== undefined && initialHeading !== null && !isNaN(initialHeading)) {
+      setLiveHeading(initialHeading);
+    }
+  }, [initialHeading]);
 
   useEffect(() => {
     if (!subscribeToLocation) return undefined;
@@ -1284,24 +1302,54 @@ function LiveOutdoorFeatures({ subscribeToLocation, currentLocation, initialHead
     });
   }, [subscribeToLocation]);
 
-  const visibleOutdoorRoute = useMemo(
-    () => trimRouteFromLocation(route, liveLocation),
-    [route, liveLocation]
-  );
-  
+  // Project user onto the planned route to determine closest point and distance
+  const routeDistInfo = useMemo(() => {
+    if (!liveLocation || !route || route.length < 2) {
+      return { point: null, distanceMeters: Infinity, segmentIndex: 0 };
+    }
+    return getDistanceToRoute(route, liveLocation);
+  }, [route, liveLocation]);
+
+  const isSnapped = routeDistInfo.distanceMeters <= SNAP_TOLERANCE_METERS;
+
+  // Center user icon onto the path if within snapping range (left/right deviation);
+  // Never draw any connecting path from user location to the route!
   const markerPos = useMemo(() => {
     if (!liveLocation) return null;
-    if (route && route.length >= 2) {
-      const { point, distanceMeters } = getDistanceToRoute(route, liveLocation);
-      if (distanceMeters <= 8) {
-        return point;
-      }
+    if (isSnapped && routeDistInfo.point) {
+      return routeDistInfo.point;
     }
     return [liveLocation.lat, liveLocation.lng];
-  }, [liveLocation, route]);
-  
-  const outdoorArrows = buildArrowMarkers(visibleOutdoorRoute, 15);
-  const outdoorUserIconDynamic = makeUserIcon(liveHeading);
+  }, [liveLocation, isSnapped, routeDistInfo.point]);
+
+  // Visible route ahead: starts cleanly at user's snapped position along the path.
+  // Completed segments behind the user are trimmed.
+  const visibleOutdoorRoute = useMemo(() => {
+    if (!route || route.length < 2) return route || [];
+    if (isSnapped && routeDistInfo.point) {
+      return [routeDistInfo.point, ...route.slice(routeDistInfo.segmentIndex + 1)];
+    }
+    return route;
+  }, [route, isSnapped, routeDistInfo]);
+
+  // Dynamic heading: if compass heading is valid, use it;
+  // otherwise, orient along the forward path segment direction for smooth guidance.
+  const effectiveHeading = useMemo(() => {
+    if (liveHeading !== null && !isNaN(liveHeading) && liveHeading !== 0) {
+      return liveHeading;
+    }
+    if (isSnapped && route && route.length > routeDistInfo.segmentIndex + 1) {
+      const p1 = route[routeDistInfo.segmentIndex];
+      const p2 = route[routeDistInfo.segmentIndex + 1];
+      if (p1 && p2) {
+        return getBearing(p1, p2);
+      }
+    }
+    return liveHeading || 0;
+  }, [liveHeading, isSnapped, route, routeDistInfo.segmentIndex]);
+
+  const outdoorArrows = useMemo(() => buildArrowMarkers(visibleOutdoorRoute, 15), [visibleOutdoorRoute]);
+  const outdoorUserIconDynamic = useMemo(() => makeUserIcon(effectiveHeading), [effectiveHeading]);
 
   return (
     <>
